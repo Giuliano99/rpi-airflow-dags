@@ -15,7 +15,7 @@ DB_CONFIG = {
 }
 
 # Path to CSV files
-CSV_FOLDER = "/darts/dart_matches"
+CSV_FOLDER = "/home/pi/darts/dart_matches"
 
 # Function to load CSVs into PostgreSQL
 def load_csv_to_postgres():
