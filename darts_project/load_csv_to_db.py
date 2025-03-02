@@ -8,7 +8,7 @@ from datetime import datetime
 
 # PostgreSQL Connection Details
 DB_CONFIG = {
-    "host": "pg2-de-rpi",  # Or the IP of your Raspberry Pi if accessing remotely
+    "host": "172.17.0.2",  # Or the IP of your Raspberry Pi if accessing remotely
     "port": "5432",
     "database": "darts_project",
     "user": "postgres",
