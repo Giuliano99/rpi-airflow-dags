@@ -29,8 +29,9 @@ def load_csv_to_postgres():
             print(f"Loading {file_path} into database")
 
             # Check if the file is empty
-            if os.stat(file_path).st_size == 0:
-                raise ValueError(f"🚨 CSV file is empty: {file_path}")
+            if os.path.getsize(file_path) == 0:
+                print(f"Skipping empty file: {file_path}")
+                return  # Exit the function
 
             # Read CSV file
             df = pd.read_csv(file_path)
