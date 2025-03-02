@@ -51,7 +51,7 @@ def load_csv_to_postgres():
                 INSERT INTO dart_matches (player1, player2, score1, score2, match_date)
                 VALUES (%s, %s, %s, %s, %s);
                 """
-                cursor.execute(insert_query, (row['player1'], row['player2'], row['score1'], row['score2'], row['match_date']))
+                cursor.execute(insert_query, (row['Player1'], row['Player2'], row['Player 1 Score'], row['Player 1 Score'], row['Winner']))
 
             conn.commit()
             print(f"✅ {filename} loaded successfully")
@@ -62,7 +62,7 @@ def load_csv_to_postgres():
 # Airflow DAG
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2024, 1, 1),
+    "start_date": datetime(2025, 2, 2),
     "catchup": False
 }
 
