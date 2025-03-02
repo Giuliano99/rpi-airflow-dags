@@ -5,12 +5,13 @@ import psycopg2
 import os
 from datetime import datetime
 
+
 # PostgreSQL Connection Details
 DB_CONFIG = {
     "host": "localhost",  # Or the IP of your Raspberry Pi if accessing remotely
     "port": "5432",
     "database": "darts_project",
-    "user": "darts",
+    "user": "postgress",
     "password": "5ads15"  # Replace with your actual password
 }
 
