@@ -23,14 +23,29 @@ def load_csv_to_postgres():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
-    # Loop through all CSV files
     for filename in os.listdir(CSV_FOLDER):
         if filename.endswith(".csv"):
             file_path = os.path.join(CSV_FOLDER, filename)
             print(f"Loading {file_path} into database")
 
+            # Check if the file is empty
+            if os.stat(file_path).st_size == 0:
+                print(f"⚠️ Skipping empty file: {filename}")
+                continue
+
             # Read CSV file
             df = pd.read_csv(file_path)
+
+            # Skip if DataFrame is empty
+            if df.empty:
+                print(f"⚠️ Skipping empty CSV: {filename}")
+                continue
+
+            # Ensure column names match the database schema
+            expected_columns = {'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'}
+            if not expected_columns.issubset(df.columns):
+                print(f"⚠️ Skipping file with missing columns: {filename}")
+                continue
 
             # Create table if not exists
             create_table_query = """
