@@ -38,9 +38,9 @@ def load_csv_to_postgres():
                 match_id SERIAL PRIMARY KEY,
                 player1 VARCHAR(100),
                 player2 VARCHAR(100),
-                score1 INT,
-                score2 INT,
-                match_date DATE
+                player1score INT,
+                player2score INT,
+                winner VARCHAR(100)
             );
             """
             cursor.execute(create_table_query)
@@ -51,7 +51,7 @@ def load_csv_to_postgres():
                 INSERT INTO dart_matches (player1, player2, score1, score2, match_date)
                 VALUES (%s, %s, %s, %s, %s);
                 """
-                cursor.execute(insert_query, (row['Player 1'], row['Player 2'], row['Player 1 Score'], row['Player 1 Score'], row['Winner']))
+                cursor.execute(insert_query, (row['Player 1'], row['Player 2'], row['Player 1 Score'], row['Player 2 Score'], row['Winner']))
 
             conn.commit()
             print(f"✅ {filename} loaded successfully")
