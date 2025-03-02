@@ -60,14 +60,27 @@ def load_csv_to_postgres():
             """
             cursor.execute(create_table_query)
 
-            # Insert data into the database
-            for _, row in df.iterrows():
-                insert_query = """
-                INSERT INTO dart_matches (player1, player2, player1score, player2score, winner)
-                VALUES (%s, %s, %s, %s, %s);
-                """
-                cursor.execute(insert_query, (row['Player 1'], row['Player 2'], row['Player 1 Score'], row['Player 2 Score'], row['Winner']))
+            MAX_INT = 2147483647  # PostgreSQL INTEGER max value
 
+            for _, row in df.iterrows():
+                try:
+                    p1_score = int(row['Player 1 Score'])
+                    p2_score = int(row['Player 2 Score'])
+
+                    # Check if the values exceed the allowed range
+                    if abs(p1_score) > MAX_INT or abs(p2_score) > MAX_INT:
+                        print(f"⚠️ Skipping row with out-of-range values: {row}")
+                        continue
+
+                    insert_query = """
+                    INSERT INTO dart_matches (player1, player2, player1score, player2score, winner)
+                    VALUES (%s, %s, %s, %s, %s);
+                    """
+                    cursor.execute(insert_query, (row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
+
+                except ValueError:
+                    print(f"⚠️ Skipping row with invalid numeric value: {row}")
+                    continue
             conn.commit()
             print(f"✅ {filename} loaded successfully")
 
