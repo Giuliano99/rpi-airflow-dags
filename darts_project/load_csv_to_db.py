@@ -51,7 +51,7 @@ def load_csv_to_postgres():
                 INSERT INTO dart_matches (player1, player2, score1, score2, match_date)
                 VALUES (%s, %s, %s, %s, %s);
                 """
-                cursor.execute(insert_query, (row['Player1'], row['Player2'], row['Player 1 Score'], row['Player 1 Score'], row['Winner']))
+                cursor.execute(insert_query, (row['Player 1'], row['Player 2'], row['Player 1 Score'], row['Player 1 Score'], row['Winner']))
 
             conn.commit()
             print(f"✅ {filename} loaded successfully")
