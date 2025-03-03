@@ -1,0 +1,81 @@
+```gitignore
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.tmp
+*.swp
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Logs
+logs/
+*.log
+*.out
+*.err
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Compiled source #
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Java
+*.war
+*.jar
+
+# C++
+*.obj
+*.elf
+
+# Go
+bin/
+*.exe
+
+# Rust
+target/
+
+# JavaScript / TypeScript #
+dist/
+out/
+compiled/
+
+# Environment variables
+.env
+.env.*.local
+
+# IDEs and editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# macOS
+*.DS_Store
+
+# Windows
+*.db
+```
+
+You should adjust this list according to the specifics of your project or add entries that are pertinent to your development environment or stack.
