@@ -65,6 +65,7 @@ def load_csv_to_postgres():
 
             for _, row in df.iterrows():
                 try:
+                    match_date = pd.to_datetime(row['Date']).date()
                     p1_score = int(row['Player 1 Score'])
                     p2_score = int(row['Player 2 Score'])
 
@@ -77,7 +78,7 @@ def load_csv_to_postgres():
                     INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
                     VALUES (%s, %s, %s, %s, %s);
                     """
-                    cursor.execute(insert_query, (row['Date'], row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
+                    cursor.execute(insert_query, (match_date, row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
 
                 except ValueError:
                     print(f"⚠️ Skipping row with invalid numeric value: {row}")
