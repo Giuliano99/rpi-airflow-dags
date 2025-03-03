@@ -74,7 +74,7 @@ def load_csv_to_postgres():
                         continue
 
                     insert_query = """
-                    INSERT INTO dart_matches (player1, player2, player1score, player2score, winner)
+                    INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
                     VALUES (%s, %s, %s, %s, %s);
                     """
                     cursor.execute(insert_query, (row['Date'], row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
