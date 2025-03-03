@@ -51,6 +51,7 @@ def load_csv_to_postgres():
             create_table_query = """
             CREATE TABLE IF NOT EXISTS dart_matches (
                 match_id SERIAL PRIMARY KEY,
+                matchdate DATE, 
                 player1 VARCHAR(100),
                 player2 VARCHAR(100),
                 player1score INT,
@@ -76,7 +77,7 @@ def load_csv_to_postgres():
                     INSERT INTO dart_matches (player1, player2, player1score, player2score, winner)
                     VALUES (%s, %s, %s, %s, %s);
                     """
-                    cursor.execute(insert_query, (row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
+                    cursor.execute(insert_query, (row['Date'], row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
 
                 except ValueError:
                     print(f"⚠️ Skipping row with invalid numeric value: {row}")
