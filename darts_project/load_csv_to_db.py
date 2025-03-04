@@ -17,19 +17,18 @@ DB_CONFIG = {
 # Path to CSV files
 CSV_FOLDER = "/home/pi/darts/dart_matches"
 
-# Function to load CSVs into PostgreSQL
 def load_csv_to_postgres():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
-    # ✅ Alter table to add matchdate if it doesn’t exist
+    # ✅ Ensure the `matchdate` column exists
     cursor.execute("""
         DO $$ 
         BEGIN
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                            WHERE table_name = 'dart_matches' AND column_name = 'matchdate') 
             THEN
-                ALTER TABLE dart_matches ADD COLUMN matchdate DATE;
+                ALTER TABLE dart_matches ADD COLUMN matchdate DATE DEFAULT '1900-01-01';
             END IF;
         END $$;
     """)
@@ -40,41 +39,41 @@ def load_csv_to_postgres():
             file_path = os.path.join(CSV_FOLDER, filename)
             print(f"Loading {file_path} into database")
 
-            # Check if the file is empty
             if os.path.getsize(file_path) == 0:
                 print(f"Skipping empty file: {file_path}")
                 continue  
 
-            # ✅ Read CSV file (including "Date" column)
+            # ✅ Read CSV (including "Date" column)
             df = pd.read_csv(file_path, usecols=['Date', 'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'])
 
-            # Convert Date to correct format
-            df['Date'] = pd.to_datetime(df['Date'], format='%d.%m.%Y').dt.date
+            # ✅ Replace missing or invalid dates with default '1900-01-01'
+            df['Date'] = pd.to_datetime(df['Date'], format='%d.%m.%Y', errors='coerce')
+            df['Date'].fillna(pd.Timestamp('1900-01-01'), inplace=True)  # Default date for missing values
 
-            # Skip if DataFrame is empty
+            # Ensure no missing values remain
+            df['Date'] = df['Date'].dt.date  
+
             if df.empty:
                 print(f"⚠️ Skipping empty CSV: {filename}")
                 continue
 
-            # Ensure column names match the database schema
             expected_columns = {'Date', 'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'}
             if not expected_columns.issubset(df.columns):
                 print(f"⚠️ Skipping file with missing columns: {filename}")
                 continue
 
-            MAX_INT = 2147483647  # PostgreSQL INTEGER max value
+            MAX_INT = 2147483647  
 
             for _, row in df.iterrows():
                 try:
                     p1_score = int(row['Player 1 Score'])
                     p2_score = int(row['Player 2 Score'])
 
-                    # Check if the values exceed the allowed range
                     if abs(p1_score) > MAX_INT or abs(p2_score) > MAX_INT:
                         print(f"⚠️ Skipping row with out-of-range values: {row}")
                         continue
 
-                    # ✅ Insert data including matchdate
+                    # ✅ Insert with a guaranteed valid date
                     insert_query = """
                     INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
                     VALUES (%s, %s, %s, %s, %s, %s);
