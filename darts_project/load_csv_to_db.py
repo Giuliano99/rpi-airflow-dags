@@ -97,7 +97,7 @@ default_args = {
 
 with DAG("load_darts_results",
          default_args=default_args,
-         schedule_interval="@daily",  # Runs every day
+         schedule_interval='10 21 * * *',  # Runs every day at 21:10
          ) as dag:
 
     task_load_csv = PythonOperator(
