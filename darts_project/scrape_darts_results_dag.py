@@ -30,8 +30,8 @@ with DAG(
 ) as dag:
 
     # Define a function to run your script
-    def run_hello_world_script():
-        script_path = os.path.join(os.path.dirname(__file__), 'hello_world.py')
+    def run_scrape_darts_results_script():
+        script_path = os.path.join(os.path.dirname(__file__), 'scrape_darts_results.py')
         try:
             result = subprocess.run(['python3', script_path], check=True, capture_output=True, text=True)
             print(result.stdout)
@@ -39,10 +39,10 @@ with DAG(
             print(f"Error executing script: {e.stderr}")
 
     # Define the Python task
-    run_hello_world_task = PythonOperator(
-        task_id='run_hello_world_task',
-        python_callable=run_hello_world_script,
+    run_scrape_darts_results_task = PythonOperator(
+        task_id='run_scrape_darts_results_task',
+        python_callable=run_scrape_darts_results_script,
     )
 
     # Define task dependencies if needed
-    run_hello_world_task
+    run_scrape_darts_results_task

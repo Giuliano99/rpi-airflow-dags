@@ -4,7 +4,7 @@ import pandas as pd
 import psycopg2
 import os
 from datetime import datetime
-
+import numpy as np
 
 # PostgreSQL Connection Details
 DB_CONFIG = {
@@ -41,47 +41,66 @@ def load_csv_to_postgres():
                 print(f"⚠️ Skipping empty CSV: {filename}")
                 continue
 
-            # Ensure column names match the database schema
-            expected_columns = {'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'}
+            # Ensure required columns exist
+            expected_columns = {'Date', 'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'}
             if not expected_columns.issubset(df.columns):
                 print(f"⚠️ Skipping file with missing columns: {filename}")
                 continue
 
-            # Create table if not exists
+            # Set default date if missing
+            df['Date'] = df['Date'].fillna("1970-01-01")  # Default date for missing values
+
+            # Ensure table exists
             create_table_query = """
             CREATE TABLE IF NOT EXISTS dart_matches (
                 match_id SERIAL PRIMARY KEY,
-                matchdate VARCHAR(100), 
+                matchdate DATE, 
                 player1 VARCHAR(100),
                 player2 VARCHAR(100),
                 player1score INT,
                 player2score INT,
-                winner VARCHAR(100)
+                winner VARCHAR(100),
+                UNIQUE (player1, player2, matchdate)  -- Prevent duplicates
             );
             """
             cursor.execute(create_table_query)
+            conn.commit()
 
-            MAX_INT = 2147483647  # PostgreSQL INTEGER max value
-
+            # Replace NaN values in the DataFrame
+            df['Player 1'] = df['Player 1'].fillna("Unknown").astype(str)
+            df['Player 2'] = df['Player 2'].fillna("Unknown").astype(str)
+            df['Date'] = df['Date'].fillna("1970-01-01").astype(str)
+            
             for _, row in df.iterrows():
                 try:
-                    p1_score = int(row['Player 1 Score'])
-                    p2_score = int(row['Player 2 Score'])
-
-                    # Check if the values exceed the allowed range
-                    if abs(p1_score) > MAX_INT or abs(p2_score) > MAX_INT:
-                        print(f"⚠️ Skipping row with out-of-range values: {row}")
-                        continue
-
-                    insert_query = """
-                    INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
-                    VALUES (%s, %s, %s, %s, %s);
+                    # Convert numeric columns and handle NaN cases
+                    p1_score = int(row['Player 1 Score']) if not pd.isna(row['Player 1 Score']) else 0
+                    p2_score = int(row['Player 2 Score']) if not pd.isna(row['Player 2 Score']) else 0
+                    matchdate = str(row['Date'])
+            
+                    player1 = str(row['Player 1']).strip()  # Ensure it's a string
+                    player2 = str(row['Player 2']).strip()
+            
+                    # Check if the record already exists
+                    check_query = """
+                    SELECT 1 FROM dart_matches 
+                    WHERE player1 = %s AND player2 = %s AND matchdate = %s;
                     """
-                    cursor.execute(insert_query, (row['Date'], row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
-
+                    cursor.execute(check_query, (player1, player2, matchdate))
+            
+                    if cursor.fetchone() is None:  # No existing record, insert new one
+                        insert_query = """
+                        INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
+                        VALUES (%s, %s, %s, %s, %s, %s);
+                        """
+                        cursor.execute(insert_query, (matchdate, player1, player2, p1_score, p2_score, row['Winner']))
+                    else:
+                        print(f"⚠️ Skipping duplicate match: {player1} vs {player2} on {matchdate}")
+            
                 except ValueError:
                     print(f"⚠️ Skipping row with invalid numeric value: {row}")
                     continue
+
             conn.commit()
             print(f"✅ {filename} loaded successfully")
 
