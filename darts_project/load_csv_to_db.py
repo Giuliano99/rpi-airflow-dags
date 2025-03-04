@@ -4,6 +4,7 @@ import pandas as pd
 import psycopg2
 import os
 from datetime import datetime
+import numpy as np
 
 # PostgreSQL Connection Details
 DB_CONFIG = {
@@ -65,28 +66,37 @@ def load_csv_to_postgres():
             cursor.execute(create_table_query)
             conn.commit()
 
+            # Replace NaN values in the DataFrame
+            df['Player 1'] = df['Player 1'].fillna("Unknown").astype(str)
+            df['Player 2'] = df['Player 2'].fillna("Unknown").astype(str)
+            df['Date'] = df['Date'].fillna("1970-01-01").astype(str)
+            
             for _, row in df.iterrows():
                 try:
-                    p1_score = int(row['Player 1 Score'])
-                    p2_score = int(row['Player 2 Score'])
-                    matchdate = row['Date'] if row['Date'] else "1970-01-01"  # Set default date if missing
-
-                    # Check if record already exists
+                    # Convert numeric columns and handle NaN cases
+                    p1_score = int(row['Player 1 Score']) if not pd.isna(row['Player 1 Score']) else 0
+                    p2_score = int(row['Player 2 Score']) if not pd.isna(row['Player 2 Score']) else 0
+                    matchdate = str(row['Date'])
+            
+                    player1 = str(row['Player 1']).strip()  # Ensure it's a string
+                    player2 = str(row['Player 2']).strip()
+            
+                    # Check if the record already exists
                     check_query = """
                     SELECT 1 FROM dart_matches 
                     WHERE player1 = %s AND player2 = %s AND matchdate = %s;
                     """
-                    cursor.execute(check_query, (row['Player 1'], row['Player 2'], matchdate))
-
-                    if cursor.fetchone() is None:  # No existing record
+                    cursor.execute(check_query, (player1, player2, matchdate))
+            
+                    if cursor.fetchone() is None:  # No existing record, insert new one
                         insert_query = """
                         INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
                         VALUES (%s, %s, %s, %s, %s, %s);
                         """
-                        cursor.execute(insert_query, (matchdate, row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
+                        cursor.execute(insert_query, (matchdate, player1, player2, p1_score, p2_score, row['Winner']))
                     else:
-                        print(f"⚠️ Skipping duplicate match: {row['Player 1']} vs {row['Player 2']} on {matchdate}")
-
+                        print(f"⚠️ Skipping duplicate match: {player1} vs {player2} on {matchdate}")
+            
                 except ValueError:
                     print(f"⚠️ Skipping row with invalid numeric value: {row}")
                     continue
