@@ -22,6 +22,19 @@ def load_csv_to_postgres():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
+    # ✅ Alter table to add matchdate if it doesn’t exist
+    cursor.execute("""
+        DO $$ 
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                           WHERE table_name = 'dart_matches' AND column_name = 'matchdate') 
+            THEN
+                ALTER TABLE dart_matches ADD COLUMN matchdate DATE;
+            END IF;
+        END $$;
+    """)
+    conn.commit()
+
     for filename in os.listdir(CSV_FOLDER):
         if filename.endswith(".csv"):
             file_path = os.path.join(CSV_FOLDER, filename)
@@ -30,34 +43,24 @@ def load_csv_to_postgres():
             # Check if the file is empty
             if os.path.getsize(file_path) == 0:
                 print(f"Skipping empty file: {file_path}")
-                return  # Exit the function
+                continue  
 
-            # Read CSV file (without "Date" column)
-            df = pd.read_csv(file_path, usecols=['Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'])
+            # ✅ Read CSV file (including "Date" column)
+            df = pd.read_csv(file_path, usecols=['Date', 'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'])
+
+            # Convert Date to correct format
+            df['Date'] = pd.to_datetime(df['Date'], format='%d.%m.%Y').dt.date
 
             # Skip if DataFrame is empty
             if df.empty:
                 print(f"⚠️ Skipping empty CSV: {filename}")
                 continue
 
-            # Ensure column names match the database schema (without "Date")
-            expected_columns = {'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'}
+            # Ensure column names match the database schema
+            expected_columns = {'Date', 'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'}
             if not expected_columns.issubset(df.columns):
                 print(f"⚠️ Skipping file with missing columns: {filename}")
                 continue
-
-            # Create table if not exists (without "matchdate")
-            create_table_query = """
-            CREATE TABLE IF NOT EXISTS dart_matches (
-                match_id SERIAL PRIMARY KEY,
-                player1 VARCHAR(100),
-                player2 VARCHAR(100),
-                player1score INT,
-                player2score INT,
-                winner VARCHAR(100)
-            );
-            """
-            cursor.execute(create_table_query)
 
             MAX_INT = 2147483647  # PostgreSQL INTEGER max value
 
@@ -71,12 +74,12 @@ def load_csv_to_postgres():
                         print(f"⚠️ Skipping row with out-of-range values: {row}")
                         continue
 
-                    # Corrected SQL query (without "matchdate")
+                    # ✅ Insert data including matchdate
                     insert_query = """
-                    INSERT INTO dart_matches (player1, player2, player1score, player2score, winner)
-                    VALUES (%s, %s, %s, %s, %s);
+                    INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
+                    VALUES (%s, %s, %s, %s, %s, %s);
                     """
-                    cursor.execute(insert_query, (row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
+                    cursor.execute(insert_query, (row['Date'], row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
 
                 except ValueError as e:
                     print(f"⚠️ Skipping row due to error {e}: {row}")
