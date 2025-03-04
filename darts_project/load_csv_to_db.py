@@ -5,7 +5,6 @@ import psycopg2
 import os
 from datetime import datetime
 
-
 # PostgreSQL Connection Details
 DB_CONFIG = {
     "host": "172.17.0.2",  # Or the IP of your Raspberry Pi if accessing remotely
@@ -33,25 +32,24 @@ def load_csv_to_postgres():
                 print(f"Skipping empty file: {file_path}")
                 return  # Exit the function
 
-            # Read CSV file
-            df = pd.read_csv(file_path)
+            # Read CSV file (without "Date" column)
+            df = pd.read_csv(file_path, usecols=['Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'])
 
             # Skip if DataFrame is empty
             if df.empty:
                 print(f"⚠️ Skipping empty CSV: {filename}")
                 continue
 
-            # Ensure column names match the database schema
+            # Ensure column names match the database schema (without "Date")
             expected_columns = {'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'}
             if not expected_columns.issubset(df.columns):
                 print(f"⚠️ Skipping file with missing columns: {filename}")
                 continue
 
-            # Create table if not exists
+            # Create table if not exists (without "matchdate")
             create_table_query = """
             CREATE TABLE IF NOT EXISTS dart_matches (
                 match_id SERIAL PRIMARY KEY,
-                matchdate VARCHAR(100), 
                 player1 VARCHAR(100),
                 player2 VARCHAR(100),
                 player1score INT,
@@ -73,15 +71,17 @@ def load_csv_to_postgres():
                         print(f"⚠️ Skipping row with out-of-range values: {row}")
                         continue
 
+                    # Corrected SQL query (without "matchdate")
                     insert_query = """
-                    INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
+                    INSERT INTO dart_matches (player1, player2, player1score, player2score, winner)
                     VALUES (%s, %s, %s, %s, %s);
                     """
-                    cursor.execute(insert_query, (row['Date'], row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
+                    cursor.execute(insert_query, (row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
 
-                except ValueError:
-                    print(f"⚠️ Skipping row with invalid numeric value: {row}")
+                except ValueError as e:
+                    print(f"⚠️ Skipping row due to error {e}: {row}")
                     continue
+
             conn.commit()
             print(f"✅ {filename} loaded successfully")
 
