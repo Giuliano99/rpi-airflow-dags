@@ -4,7 +4,6 @@ import pandas as pd
 import psycopg2
 import os
 from datetime import datetime
-import numpy as np
 
 # PostgreSQL Connection Details
 DB_CONFIG = {
