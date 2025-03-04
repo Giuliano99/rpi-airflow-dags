@@ -17,71 +17,78 @@ DB_CONFIG = {
 # Path to CSV files
 CSV_FOLDER = "/home/pi/darts/dart_matches"
 
+# Function to load CSVs into PostgreSQL
 def load_csv_to_postgres():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
-
-    # ✅ Ensure the `matchdate` column exists
-    cursor.execute("""
-        DO $$ 
-        BEGIN
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                           WHERE table_name = 'dart_matches' AND column_name = 'matchdate') 
-            THEN
-                ALTER TABLE dart_matches ADD COLUMN matchdate DATE DEFAULT '1900-01-01';
-            END IF;
-        END $$;
-    """)
-    conn.commit()
 
     for filename in os.listdir(CSV_FOLDER):
         if filename.endswith(".csv"):
             file_path = os.path.join(CSV_FOLDER, filename)
             print(f"Loading {file_path} into database")
 
+            # Check if the file is empty
             if os.path.getsize(file_path) == 0:
                 print(f"Skipping empty file: {file_path}")
-                continue  
+                return  # Exit the function
 
-            # ✅ Read CSV (including "Date" column)
-            df = pd.read_csv(file_path, usecols=['Date', 'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'])
+            # Read CSV file
+            df = pd.read_csv(file_path)
 
-            # ✅ Replace missing or invalid dates with default '1900-01-01'
-            df['Date'] = pd.to_datetime(df['Date'], format='%d.%m.%Y', errors='coerce')
-            df['Date'].fillna(pd.Timestamp('1900-01-01'), inplace=True)  # Default date for missing values
-
-            # Ensure no missing values remain
-            df['Date'] = df['Date'].dt.date  
-
+            # Skip if DataFrame is empty
             if df.empty:
                 print(f"⚠️ Skipping empty CSV: {filename}")
                 continue
 
+            # Ensure required columns exist
             expected_columns = {'Date', 'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'}
             if not expected_columns.issubset(df.columns):
                 print(f"⚠️ Skipping file with missing columns: {filename}")
                 continue
 
-            MAX_INT = 2147483647  
+            # Set default date if missing
+            df['Date'] = df['Date'].fillna("1970-01-01")  # Default date for missing values
+
+            # Ensure table exists
+            create_table_query = """
+            CREATE TABLE IF NOT EXISTS dart_matches (
+                match_id SERIAL PRIMARY KEY,
+                matchdate DATE, 
+                player1 VARCHAR(100),
+                player2 VARCHAR(100),
+                player1score INT,
+                player2score INT,
+                winner VARCHAR(100),
+                UNIQUE (player1, player2, matchdate)  -- Prevent duplicates
+            );
+            """
+            cursor.execute(create_table_query)
+            conn.commit()
 
             for _, row in df.iterrows():
                 try:
                     p1_score = int(row['Player 1 Score'])
                     p2_score = int(row['Player 2 Score'])
+                    matchdate = row['Date'] if row['Date'] else "1970-01-01"  # Set default date if missing
 
-                    if abs(p1_score) > MAX_INT or abs(p2_score) > MAX_INT:
-                        print(f"⚠️ Skipping row with out-of-range values: {row}")
-                        continue
-
-                    # ✅ Insert with a guaranteed valid date
-                    insert_query = """
-                    INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
-                    VALUES (%s, %s, %s, %s, %s, %s);
+                    # Check if record already exists
+                    check_query = """
+                    SELECT 1 FROM dart_matches 
+                    WHERE player1 = %s AND player2 = %s AND matchdate = %s;
                     """
-                    cursor.execute(insert_query, (row['Date'], row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
+                    cursor.execute(check_query, (row['Player 1'], row['Player 2'], matchdate))
 
-                except ValueError as e:
-                    print(f"⚠️ Skipping row due to error {e}: {row}")
+                    if cursor.fetchone() is None:  # No existing record
+                        insert_query = """
+                        INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
+                        VALUES (%s, %s, %s, %s, %s, %s);
+                        """
+                        cursor.execute(insert_query, (matchdate, row['Player 1'], row['Player 2'], p1_score, p2_score, row['Winner']))
+                    else:
+                        print(f"⚠️ Skipping duplicate match: {row['Player 1']} vs {row['Player 2']} on {matchdate}")
+
+                except ValueError:
+                    print(f"⚠️ Skipping row with invalid numeric value: {row}")
                     continue
 
             conn.commit()
