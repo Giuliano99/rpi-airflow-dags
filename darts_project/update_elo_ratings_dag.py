@@ -68,9 +68,9 @@ def calculate_elo():
     print("Elo ratings updated successfully.")
 
 # Airflow DAG setup
-default_args = {"owner": "airflow", "start_date": datetime(2025, 2, 2), "catchup": False}
+default_args = {"owner": "airflow", "start_date": datetime(2025, 3, 3), "catchup": False}
 
-with DAG("update_elo_ratings", default_args=default_args, schedule_interval="@hourly") as dag:
+with DAG("update_elo_ratings", default_args=default_args, schedule_interval="@daily") as dag:
     task_update_elo = PythonOperator(
         task_id="calculate_elo",
         python_callable=calculate_elo
