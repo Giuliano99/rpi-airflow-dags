@@ -12,6 +12,26 @@ DB_CONFIG = {
     "password": "5ads15"  # Replace with your actual password
 }
 
+def add_new_players():
+    conn = psycopg2.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+
+    # Insert new players from dart_matches into elo_rankings if they don't exist
+    insert_new_players_query = """
+        INSERT INTO elo_rankings (player, elo)
+        SELECT DISTINCT player1, 1500 FROM dart_matches
+        WHERE player1 NOT IN (SELECT player FROM elo_rankings)
+        UNION
+        SELECT DISTINCT player2, 1500 FROM dart_matches
+        WHERE player2 NOT IN (SELECT player FROM elo_rankings);
+    """
+    
+    cursor.execute(insert_new_players_query)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
 def calculate_elo():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
@@ -69,6 +89,21 @@ def calculate_elo():
 
 # Airflow DAG setup
 default_args = {"owner": "airflow", "start_date": datetime(2025, 3, 3), "catchup": False}
+
+task_add_new_players = PythonOperator(
+    task_id="add_new_players",
+    python_callable=add_new_players,
+    dag=dag,
+)
+
+task_calculate_elo = PythonOperator(
+    task_id="calculate_elo",
+    python_callable=calculate_elo,
+    dag=dag,
+)
+
+task_add_new_players >> task_calculate_elo  # Ensure new players exist before Elo calculation
+
 
 with DAG("update_elo_ratings", default_args=default_args, schedule_interval="@daily") as dag:
     task_update_elo = PythonOperator(
