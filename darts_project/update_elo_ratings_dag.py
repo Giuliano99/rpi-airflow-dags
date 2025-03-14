@@ -46,12 +46,13 @@ def calculate_elo():
         elo_change_p1 INT,
         elo_change_p2 INT,
         winner VARCHAR(100),
-        match_date VARCHAR(100)
+        match_date TIMESTAMP
     );
     """
     cursor.execute(create_elo_log_table_query)
     conn.commit()
 
+    # ✅ Get new matches
     cursor.execute("""
         SELECT match_id, player1, player2, player1score, player2score, winner, matchdate
         FROM dart_matches
@@ -64,21 +65,29 @@ def calculate_elo():
         print("No new matches to process.")
         return
 
+    # ✅ Load current Elo rankings
     cursor.execute("SELECT player, elo FROM elo_rankings")
     elo_dict = {row[0]: row[1] for row in cursor.fetchall()}
 
     def update_elo(winner, loser, k=32):
-        Ra = elo_dict.get(winner, 1500)
-        Rb = elo_dict.get(loser, 1500)
+        Ra = elo_dict.get(winner, 1500)  # Winner's current Elo
+        Rb = elo_dict.get(loser, 1500)   # Loser's current Elo
 
-        Ea = 1 / (1 + 10 ** ((Rb - Ra) / 400))
-        Eb = 1 / (1 + 10 ** ((Ra - Rb) / 400))
+        Ea = 1 / (1 + 10 ** ((Rb - Ra) / 400))  # Expected score for winner
+        Eb = 1 / (1 + 10 ** ((Ra - Rb) / 400))  # Expected score for loser
 
-        elo_gain = round(k * (1 - Ea))
-        elo_loss = round(k * (0 - Eb))
+        raw_elo_gain = k * (1 - Ea)
+        elo_gain = round(raw_elo_gain)
+        elo_loss = -elo_gain  # Ensure gain and loss are equal
 
-        elo_dict[winner] = Ra + elo_gain
-        elo_dict[loser] = Rb + elo_loss
+        new_Ra = Ra + elo_gain  # New Elo for winner
+        new_Rb = Rb + elo_loss  # New Elo for loser
+
+        # Update dictionary
+        elo_dict[winner] = new_Ra
+        elo_dict[loser] = new_Rb
+
+        return new_Ra, new_Rb, elo_gain, elo_loss  # Return updated ratings and changes
 
     for match in matches:
         match_id, p1, p2, p1_score, p2_score, winner, match_date = match
@@ -89,32 +98,7 @@ def calculate_elo():
         p2_elo_before = elo_dict.get(p2, 1500)
 
         # ✅ Update Elo ratings
-    def update_elo(winner, loser, k=32):
-        Ra = elo_dict.get(winner, 1500)  # Get current Elo rating for winner
-        Rb = elo_dict.get(loser, 1500)   # Get current Elo rating for loser
-    
-        Ea = 1 / (1 + 10 ** ((Rb - Ra) / 400))  # Expected score for winner
-        Eb = 1 / (1 + 10 ** ((Ra - Rb) / 400))  # Expected score for loser
-    
-        raw_elo_gain = k * (1 - Ea)
-        elo_gain = round(raw_elo_gain)
-        elo_loss = -elo_gain  # Ensure loss is exactly the gain
-    
-        new_Ra = Ra + elo_gain  # New Elo for winner
-        new_Rb = Rb + elo_loss  # New Elo for loser
-    
-        # Update dictionary
-        elo_dict[winner] = new_Ra
-        elo_dict[loser] = new_Rb
-    
-        return new_Ra, new_Rb, elo_gain, elo_loss  # Return updated ratings and changes
-
-
-        p1_elo_after, p2_elo_after = update_elo(winner, loser)
-
-        # ✅ Calculate Elo change
-        elo_change_p1 = p1_elo_after - p1_elo_before
-        elo_change_p2 = p2_elo_after - p2_elo_before
+        p1_elo_after, p2_elo_after, elo_change_p1, elo_change_p2 = update_elo(winner, loser)
 
         # ✅ Insert Elo match log entry
         cursor.execute("""
@@ -127,7 +111,7 @@ def calculate_elo():
         # ✅ Mark match as processed
         cursor.execute("UPDATE new_matches_log SET processed = TRUE WHERE match_id = %s", (match_id,))
 
-
+    # ✅ Update `elo_rankings` table
     for player, elo in elo_dict.items():
         cursor.execute("""
             INSERT INTO elo_rankings (player, elo)
