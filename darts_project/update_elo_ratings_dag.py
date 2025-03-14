@@ -89,21 +89,26 @@ def calculate_elo():
         p2_elo_before = elo_dict.get(p2, 1500)
 
         # ✅ Update Elo ratings
-        def update_elo(winner, loser, k=32):
-            Ra = elo_dict.get(winner, 1500)
-            Rb = elo_dict.get(loser, 1500)
+    def update_elo(winner, loser, k=32):
+        Ra = elo_dict.get(winner, 1500)  # Get current Elo rating for winner
+        Rb = elo_dict.get(loser, 1500)   # Get current Elo rating for loser
+    
+        Ea = 1 / (1 + 10 ** ((Rb - Ra) / 400))  # Expected score for winner
+        Eb = 1 / (1 + 10 ** ((Ra - Rb) / 400))  # Expected score for loser
+    
+        raw_elo_gain = k * (1 - Ea)
+        elo_gain = round(raw_elo_gain)
+        elo_loss = -elo_gain  # Ensure loss is exactly the gain
+    
+        new_Ra = Ra + elo_gain  # New Elo for winner
+        new_Rb = Rb + elo_loss  # New Elo for loser
+    
+        # Update dictionary
+        elo_dict[winner] = new_Ra
+        elo_dict[loser] = new_Rb
+    
+        return new_Ra, new_Rb, elo_gain, elo_loss  # Return updated ratings and changes
 
-            Ea = 1 / (1 + 10 ** ((Rb - Ra) / 400))
-            Eb = 1 / (1 + 10 ** ((Ra - Rb) / 400))
-
-            raw_elo_gain = k * (1 - Ea)
-            elo_gain = round(raw_elo_gain)
-            elo_loss = -elo_gain  # Ensure loss is exactly the gain
-
-            elo_dict[winner] = Ra + elo_gain
-            elo_dict[loser] = Rb + elo_loss
-
-            return Ra_after, Rb_after
 
         p1_elo_after, p2_elo_after = update_elo(winner, loser)
 
