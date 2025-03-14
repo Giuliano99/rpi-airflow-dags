@@ -95,22 +95,26 @@ def load_csv_to_postgres():
                         VALUES (%s, %s, %s, %s, %s, %s) RETURNING match_id;
                         """
                         cursor.execute(insert_query, (matchdate, player1, player2, p1_score, p2_score, row['Winner']))
-                        new_match_id = cursor.fetchone()[0]
-
-                        # ✅ Insert into `new_matches_log`
-                        cursor.execute("INSERT INTO new_matches_log (match_id, processed) VALUES (%s, FALSE);", (new_match_id,))
-                    else:
-                        print(f"⚠️ Skipping duplicate match: {player1} vs {player2} on {matchdate}")
-
+                    
                 except ValueError:
                     print(f"⚠️ Skipping row with invalid numeric value: {row}")
                     continue
 
-            conn.commit()
-            print(f"✅ {filename} loaded successfully")
+    # ✅ **Add new matches to `new_matches_log` here (BEFORE closing cursor & connection)**
+    log_new_matches_query = """
+    INSERT INTO new_matches_log (match_id, processed)
+    SELECT match_id, FALSE FROM dart_matches
+    ON CONFLICT (match_id) DO NOTHING;
+    """
+    cursor.execute(log_new_matches_query)
+    conn.commit()
 
+    print("✅ New matches added to `new_matches_log` successfully.")
+
+    # ✅ **Now close the cursor & connection**
     cursor.close()
     conn.close()
+
 
 
 # Airflow DAG
