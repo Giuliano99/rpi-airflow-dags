@@ -46,7 +46,7 @@ def calculate_elo():
         elo_change_p1 INT,
         elo_change_p2 INT,
         winner VARCHAR(100),
-        match_date DATE
+        match_date VARCHAR(100)
     );
     """
     cursor.execute(create_elo_log_table_query)
