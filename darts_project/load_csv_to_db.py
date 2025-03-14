@@ -1,3 +1,23 @@
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+import pandas as pd
+import psycopg2
+import os
+from datetime import datetime
+
+# PostgreSQL Connection Details
+DB_CONFIG = {
+    "host": "172.17.0.2",  # Or the IP of your Raspberry Pi if accessing remotely
+    "port": "5432",
+    "database": "darts_project",
+    "user": "postgres",
+    "password": "5ads15"  # Replace with your actual password
+}
+
+# Path to CSV files
+CSV_FOLDER = "/home/pi/airflow/darts_results" #"/home/pi/darts/dart_matches"
+
+# Function to load CSVs into PostgreSQL
 def load_csv_to_postgres():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
@@ -91,3 +111,23 @@ def load_csv_to_postgres():
 
     cursor.close()
     conn.close()
+
+
+# Airflow DAG
+default_args = {
+    "owner": "airflow",
+    "start_date": datetime(2025, 2, 2),
+    "catchup": False
+}
+
+with DAG("load_darts_results",
+         default_args=default_args,
+         schedule_interval='10 21 * * *',  # Runs every day at 21:10
+         ) as dag:
+
+    task_load_csv = PythonOperator(
+        task_id="load_csv_to_postgres",
+        python_callable=load_csv_to_postgres
+    )
+
+    task_load_csv
