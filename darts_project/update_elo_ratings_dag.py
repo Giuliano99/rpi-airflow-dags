@@ -74,8 +74,11 @@ def calculate_elo():
         Ea = 1 / (1 + 10 ** ((Rb - Ra) / 400))
         Eb = 1 / (1 + 10 ** ((Ra - Rb) / 400))
 
-        elo_dict[winner] = Ra + k * (1 - Ea)
-        elo_dict[loser] = Rb + k * (0 - Eb)
+        elo_gain = round(k * (1 - Ea))
+        elo_loss = round(k * (0 - Eb))
+
+        elo_dict[winner] = Ra + elo_gain
+        elo_dict[loser] = Rb + elo_loss
 
     for match in matches:
         match_id, p1, p2, p1_score, p2_score, winner, match_date = match
@@ -111,7 +114,7 @@ def calculate_elo():
         cursor.execute("""
             INSERT INTO elo_match_log (match_id, player1, player2, player1_elo_before, player2_elo_before,
                                        player1_elo_after, player2_elo_after, elo_change_p1, elo_change_p2, winner, match_date)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::TEXT)
             ON CONFLICT (match_id) DO NOTHING;
         """, (match_id, p1, p2, p1_elo_before, p2_elo_before, p1_elo_after, p2_elo_after, elo_change_p1, elo_change_p2, winner, match_date))
 
