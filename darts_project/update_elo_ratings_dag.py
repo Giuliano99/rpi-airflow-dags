@@ -53,7 +53,7 @@ def calculate_elo():
     conn.commit()
 
     cursor.execute("""
-        SELECT match_id, player1, player2, player1score, player2score, winner
+        SELECT match_id, player1, player2, player1score, player2score, winner, matchdate
         FROM dart_matches
         WHERE match_id IN (SELECT match_id FROM new_matches_log WHERE processed = FALSE)
         ORDER BY matchdate ASC
