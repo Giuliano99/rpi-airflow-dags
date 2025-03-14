@@ -79,7 +79,7 @@ def calculate_elo():
     print("Elo ratings updated successfully.")
 
 # ✅ Define DAG before referencing it
-default_args = {"owner": "airflow", "start_date": datetime(2025, 13, 3), "catchup": False}
+default_args = {"owner": "airflow", "start_date": datetime(2025, 3, 13), "catchup": False}
 
 with DAG("update_elo_ratings", default_args=default_args, schedule_interval="@daily") as dag:
     task_add_new_players = PythonOperator(
