@@ -34,7 +34,7 @@ browser.execute_script("document.getElementById('onetrust-banner-sdk').style.dis
 browser.execute_script("document.getElementsByClassName('otPlaceholder')[0].style.display = 'none';")
 
 
-days_to_go_back = 1  # Adjust this value for how many days before yesterday you want
+days_to_go_back = 6  # Adjust this value for how many days before yesterday you want
 for day in range(days_to_go_back):
     try:
         wait = WebDriverWait(browser, 10)
@@ -161,7 +161,7 @@ finally:
 df = pd.DataFrame(match_data_list)
 
 # Get the current date in the format YYYY-MM-DD
-current_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+current_date = (datetime.now() - timedelta(days=days_to_go_back)).strftime('%Y-%m-%d')
 
 # Define the target directory for saving results
 output_folder = os.path.expanduser("~/airflow/darts_results")
