@@ -10,19 +10,22 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 import os
 
-# Set up the Chrome options
+#Set up the Chrome options (headless if you don't want the browser window to appear)
 options = Options()
-options.headless = True
+options.add_argument('--headless=new')  # Use new headless mode
+options.add_argument('--disable-gpu')
 options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
+options.add_argument('--remote-debugging-port=9222')
 
-# Path to ChromeDriver
+# Point to the right executable if using Chromium
+options.binary_location = '/usr/bin/chromium-browser'
+
 service = Service("/usr/bin/chromedriver")
-
-# Initialize the browser
 browser = webdriver.Chrome(service=service, options=options)
 browser.get('https://www.flashscore.de/dart/')
-wait = WebDriverWait(browser, 10)
+
+browser.maximize_window()
 
 time.sleep(3)
 
@@ -30,56 +33,72 @@ time.sleep(3)
 browser.execute_script("document.getElementById('onetrust-banner-sdk').style.display = 'none';")
 browser.execute_script("document.getElementsByClassName('otPlaceholder')[0].style.display = 'none';")
 
-# Go back N days
-days_to_go_back = 2
+
+days_to_go_back = 2  # Adjust this value for how many days before yesterday you want
 for day in range(days_to_go_back):
     try:
+        wait = WebDriverWait(browser, 10)
         previous_day_button = wait.until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.calendar__navigation--yesterday'))
         )
         previous_day_button.click()
         print(f"Clicked on 'Vorheriger Tag' button for day {day + 1}.")
-        time.sleep(2)
+        time.sleep(2)  # Adjust if needed to allow the page to load fully
     except Exception as e:
         print(f"Error clicking 'Vorheriger Tag' button on day {day + 1}: {e}")
-        break
+        break  # Stop the loop if clicking fails
 
-# Match scraping
+#Wait for the "Vorheriger Tag" button to be clickable and click it
+#try:
+ #   wait = WebDriverWait(browser, 10)
+  #  previous_day_button = wait.until(
+   #     EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.calendar__navigation--yesterday'))
+   # )
+   # previous_day_button.click()
+   # print("Clicked on 'Vorheriger Tag' button.")
+#except Exception as e:
+#    print(f"Error clicking 'Vorheriger Tag' button: {e}")
+
+wait = WebDriverWait(browser, 10)
+window_before = browser.window_handles[0]
+x = 2  # Start index
+
+# List to store the match data
 match_data_list = []
-
 try:
-    match_count = len(browser.find_elements(By.CSS_SELECTOR, '.event__match'))
+    # Wait until matches are loaded
+    wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.event__match')))
+    matches = browser.find_elements(By.CSS_SELECTOR, '.event__match')
+    print(f"Found {len(matches)} matches")
 
-    for i in range(match_count):
+    for i, match_element in enumerate(matches):
         try:
-            # Re-fetch match list
-            matches = browser.find_elements(By.CSS_SELECTOR, '.event__match')
-            match_element = matches[i]
-
+            # Skip non-match elements by checking for the specific CSS classes
             if 'event__match__header' in match_element.get_attribute('class'):
                 print(f"Skipping non-match element at index {i}")
-                continue
+                continue  # Skip headers or irrelevant rows
 
-            # Scroll into view for safety
-            browser.execute_script("arguments[0].scrollIntoView(true);", match_element)
+            # Wait until the match element is clickable and click it
             wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '.event__match')))
             match_element.click()
 
-            # Wait for match detail page to load
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.detailScore__wrapper')))
-            time.sleep(1)
+            # Handle new window
+            time.sleep(3)
+            window_after = browser.window_handles[1]
+            browser.switch_to.window(window_after)
 
+            # Scrape match details
             match_info = {}
-
-            # Match date/time
             try:
+                # Extract match date and time
                 match_date_time = browser.find_element(By.CSS_SELECTOR, '.duelParticipant__startTime div').text
-                match_info['Date'] = match_date_time.split(' ')[0]
+                match_date = match_date_time.split(' ')[0]
+                match_info['Date'] = match_date
             except Exception as e:
                 print(f"Error extracting date and time: {e}")
 
-            # Player names
             try:
+                # Extract player names
                 player_1 = browser.find_element(By.CSS_SELECTOR,
                                                 '.duelParticipant__home .participant__participantName').text
                 player_2 = browser.find_element(By.CSS_SELECTOR,
@@ -89,8 +108,8 @@ try:
             except Exception as e:
                 print(f"Error extracting players: {e}")
 
-            # Scores and winner
             try:
+                # Match result
                 score_player_1 = browser.find_element(By.CSS_SELECTOR, '.detailScore__wrapper span:nth-child(1)').text
                 score_player_2 = browser.find_element(By.CSS_SELECTOR, '.detailScore__wrapper span:nth-child(3)').text
                 winner = browser.find_element(By.CSS_SELECTOR,
@@ -102,7 +121,7 @@ try:
             except Exception as e:
                 print(f"Error extracting result: {e}")
 
-            # Averages
+            # Extract averages (3 Darts)
             try:
                 statistic_rows = browser.find_elements(By.CSS_SELECTOR, '.wcl-row_OFViZ')
                 average_player_1 = None
@@ -118,30 +137,43 @@ try:
             except Exception as e:
                 print(f"Error extracting averages: {e}")
 
+
+            # Add the match data to the list
             match_data_list.append(match_info)
 
-            # Return to match list page
-            browser.back()
-            wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.event__match')))
-            time.sleep(2)
+            # Close the match details window
+            browser.close()
+
+            browser.switch_to.window(window_before)
 
         except Exception as e:
             print(f"Error processing match at index {i}: {e}")
-            continue
+            continue  # Continue to the next match
+
 
 except Exception as e:
-    print(f"General scraping error: {e}")
+    print(f"Error: {e}")
 finally:
     browser.quit()
 
-# Convert to DataFrame
+
+# Convert the match data list to a DataFrame
 df = pd.DataFrame(match_data_list)
 
-# Save results
+# Get the current date in the format YYYY-MM-DD
 current_date = (datetime.now() - timedelta(days=days_to_go_back)).strftime('%Y-%m-%d')
+
+# Define the target directory for saving results
 output_folder = os.path.expanduser("~/airflow/darts_results")
+
+# Create the directory if it doesn't already exist
 os.makedirs(output_folder, exist_ok=True)
+
+# Construct the full file path for the CSV
 csv_filename = os.path.join(output_folder, f"match_data_airflow_{current_date}.csv")
+
+# Save the DataFrame to the CSV file in the airflow/darts_results directory
 df.to_csv(csv_filename, index=False)
 
 print(f"Data saved to {csv_filename}")
+
