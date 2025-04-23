@@ -34,7 +34,7 @@ browser.execute_script("document.getElementById('onetrust-banner-sdk').style.dis
 browser.execute_script("document.getElementsByClassName('otPlaceholder')[0].style.display = 'none';")
 
 
-days_to_go_back = 1  # Adjust this value for how many days before yesterday you want
+days_to_go_back = 2  # Adjust this value for how many days before yesterday you want
 for day in range(days_to_go_back):
     try:
         wait = WebDriverWait(browser, 10)
