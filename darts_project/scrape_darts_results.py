@@ -11,7 +11,7 @@ import os
 
 # Set up Chrome options
 options = Options()
-options.add_argument('--headless=new')  # Use new headless mode
+options.add_argument('--headless=new')  # Commented out for visible window
 options.add_argument('--disable-gpu')
 options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
@@ -20,14 +20,17 @@ options.binary_location = '/usr/bin/chromium-browser'
 
 service = Service("/usr/bin/chromedriver")
 browser = webdriver.Chrome(service=service, options=options)
-browser.get('https://www.flashscore.de/dart/')
+browser.get('https://www.flashscore.com/darts/')
 browser.maximize_window()
 
 time.sleep(3)
 
 # Remove cookie banner
-browser.execute_script("document.getElementById('onetrust-banner-sdk').style.display = 'none';")
-browser.execute_script("document.getElementsByClassName('otPlaceholder')[0].style.display = 'none';")
+try:
+    browser.execute_script("document.getElementById('onetrust-banner-sdk').style.display = 'none';")
+    browser.execute_script("document.getElementsByClassName('otPlaceholder')[0].style.display = 'none';")
+except Exception as e:
+    print(f"Cookie banner removal failed: {e}")
 
 # Go back one day if needed
 days_to_go_back = 1
@@ -46,6 +49,7 @@ for day in range(days_to_go_back):
 
 wait = WebDriverWait(browser, 10)
 match_data_list = []
+original_window = browser.current_window_handle
 
 try:
     wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.event__match')))
@@ -54,7 +58,6 @@ try:
 
     for i in range(len(matches)):
         try:
-            # Re-find match elements to avoid stale references
             matches = browser.find_elements(By.CSS_SELECTOR, '.event__match')
             match_element = matches[i]
 
@@ -62,9 +65,21 @@ try:
                 print(f"Skipping non-match element at index {i}")
                 continue
 
-            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '.event__match')))
-            match_element.click()
+            match_id = match_element.get_attribute("id")
+            if not match_id:
+                print(f"No match ID found for index {i}")
+                continue
+            match_id_cleaned = match_id[4:].lstrip("_")
 
+#            match_url = f"https://www.flashscore.com/match/darts/{match_id[4:]}/#/match-summary/match-summary"
+            match_url = f"https://www.flashscore.com/match/darts/{match_id_cleaned}/#/match-summary/match-summary"
+
+            # Open a new tab
+            browser.execute_script("window.open('');")
+            browser.switch_to.window(browser.window_handles[-1])
+            browser.get(match_url)
+
+            wait = WebDriverWait(browser, 10)
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.duelParticipant__startTime')))
 
             match_info = {}
@@ -111,12 +126,16 @@ try:
 
             match_data_list.append(match_info)
 
-            browser.back()
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.event__match')))
+            # Close the current tab
+            browser.close()
+            # Switch back to the original window
+            browser.switch_to.window(original_window)
+
             time.sleep(1)
 
         except Exception as e:
             print(f"Error processing match at index {i}: {e}")
+            browser.switch_to.window(original_window)
             continue
 
 except Exception as e:
@@ -132,4 +151,7 @@ os.makedirs(output_folder, exist_ok=True)
 csv_filename = os.path.join(output_folder, f"match_data_airflow_{current_date}.csv")
 df.to_csv(csv_filename, index=False)
 
+
 print(f"Data saved to {csv_filename}")
+
+print(df)
