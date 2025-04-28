@@ -1,81 +1,34 @@
-```gitignore
-# OS-specific files
-.DS_Store
-Thumbs.db
-
-# Backup files
-*.bak
-*.tmp
-*.swp
-
-# Node.js
-node_modules/
-npm-debug.log
-yarn-error.log
-
-# Logs
-logs/
-*.log
-*.out
-*.err
-
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
-
-# Compiled source #
-*.com
-*.class
-*.dll
-*.exe
-*.o
-*.so
-
 # Python
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.log
 
-# Java
-*.war
-*.jar
+# Virtual environment
+venv/
+.env/
+.envrc
+*.env
 
-# C++
-*.obj
-*.elf
-
-# Go
-bin/
-*.exe
-
-# Rust
-target/
-
-# JavaScript / TypeScript #
-dist/
-out/
-compiled/
-
-# Environment variables
-.env
-.env.*.local
-
-# IDEs and editors
+# VS Code settings (optional, if you use VS Code)
 .vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
 
-# macOS
-*.DS_Store
+# macOS system files (optional, safe to add)
+.DS_Store
 
-# Windows
+# Jupyter Notebook checkpoints (optional, if you ever use Jupyter)
+.ipynb_checkpoints/
+
+# Airflow files
+airflow.db
+logs/
+unittest.cfg
+
+# Other temp files
+*.sqlite3
 *.db
-```
-
-You should adjust this list according to the specifics of your project or add entries that are pertinent to your development environment or stack.
+*.bak
+*.swp
