@@ -33,7 +33,7 @@ except Exception as e:
     print(f"Cookie banner removal failed: {e}")
 
 # Go back one day if needed
-days_to_go_back = 7
+days_to_go_back = 6
 for day in range(days_to_go_back):
     try:
         wait = WebDriverWait(browser, 10)
