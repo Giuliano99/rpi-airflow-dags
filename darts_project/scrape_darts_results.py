@@ -145,13 +145,14 @@ finally:
 
 # Save results
 df = pd.DataFrame(match_data_list)
-current_date = (datetime.now() - timedelta(days=days_to_go_back)).strftime('%Y-%m-%d')
-output_folder = os.path.expanduser("~/airflow/darts_results")
-os.makedirs(output_folder, exist_ok=True)
-csv_filename = os.path.join(output_folder, f"match_data_airflow_{current_date}.csv")
-df.to_csv(csv_filename, index=False)
 
-
-print(f"Data saved to {csv_filename}")
-
-print(df)
+if df.empty:
+    print("⚠️ No matches found. CSV file will not be created.")
+else:
+    current_date = (datetime.now() - timedelta(days=days_to_go_back)).strftime('%Y-%m-%d')
+    output_folder = os.path.expanduser("~/airflow/darts_results")
+    os.makedirs(output_folder, exist_ok=True)
+    csv_filename = os.path.join(output_folder, f"match_data_airflow_{current_date}.csv")
+    df.to_csv(csv_filename, index=False)
+    print(f"✅ Data saved to {csv_filename}")
+    print(df)
