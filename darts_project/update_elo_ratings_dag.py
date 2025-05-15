@@ -81,7 +81,7 @@ def calculate_elo():
         WHERE processed = FALSE
     )
     AND matchdate >= '2025-02-06'
-    AND EXTRACT(DOW FROM matchdate) = 4  -- 4 = Thursday
+    AND EXTRACT(DOW FROM matchdate::timestamp) = 4
     AND player1 IN (
         'van Gerwen M.', 'Aspinall N.', 'Price G.', 'Bunting S.',
         'Dobey C.', 'Cross R.', 'Littler L.', 'Humphries L.'
