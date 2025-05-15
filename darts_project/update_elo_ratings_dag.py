@@ -54,10 +54,23 @@ def calculate_elo():
 
     # ✅ Get new matches
     cursor.execute("""
-        SELECT match_id, player1, player2, player1score, player2score, winner, matchdate
-        FROM dart_matches
-        WHERE match_id IN (SELECT match_id FROM new_matches_log WHERE processed = FALSE)
-        ORDER BY matchdate ASC
+    SELECT match_id, player1, player2, player1score, player2score, winner, matchdate
+    FROM dart_matches
+    WHERE match_id IN (
+        SELECT match_id FROM new_matches_log
+        WHERE processed = FALSE
+    )
+    AND matchdate >= '2025-02-06'
+    AND EXTRACT(DOW FROM matchdate) = 4  -- 4 = Thursday
+    AND player1 IN (
+        'van Gerwen M.', 'Aspinall N.', 'Price G.', 'Bunting S.',
+        'Dobey C.', 'Cross R.', 'Littler L.', 'Humphries L.'
+    )
+    AND player2 IN (
+        'van Gerwen M.', 'Aspinall N.', 'Price G.', 'Bunting S.',
+        'Dobey C.', 'Cross R.', 'Littler L.', 'Humphries L.'
+    )
+    ORDER BY matchdate ASC
     """)
     matches = cursor.fetchall()
 
