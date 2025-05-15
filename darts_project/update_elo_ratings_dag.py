@@ -15,19 +15,39 @@ def add_new_players():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
+    # ✅ Ensure elo_rankings table exists
+    create_elo_rankings_table_query = """
+    CREATE TABLE IF NOT EXISTS elo_rankings (
+        player VARCHAR(100) PRIMARY KEY,
+        elo INT NOT NULL
+    );
+    """
+    cursor.execute(create_elo_rankings_table_query)
+    conn.commit()
+
+    # ✅ Insert only the selected players from dart_matches
     insert_new_players_query = """
         INSERT INTO elo_rankings (player, elo)
         SELECT DISTINCT player1, 1500 FROM dart_matches
-        WHERE player1 NOT IN (SELECT player FROM elo_rankings)
+        WHERE player1 IN (
+            'van Gerwen M.', 'Aspinall N.', 'Price G.', 'Bunting S.',
+            'Dobey C.', 'Cross R.', 'Littler L.', 'Humphries L.'
+        )
+        AND player1 NOT IN (SELECT player FROM elo_rankings)
         UNION
         SELECT DISTINCT player2, 1500 FROM dart_matches
-        WHERE player2 NOT IN (SELECT player FROM elo_rankings);
+        WHERE player2 IN (
+            'van Gerwen M.', 'Aspinall N.', 'Price G.', 'Bunting S.',
+            'Dobey C.', 'Cross R.', 'Littler L.', 'Humphries L.'
+        )
+        AND player2 NOT IN (SELECT player FROM elo_rankings);
     """
-    
     cursor.execute(insert_new_players_query)
     conn.commit()
+
     cursor.close()
     conn.close()
+
 
 def calculate_elo():
     conn = psycopg2.connect(**DB_CONFIG)
