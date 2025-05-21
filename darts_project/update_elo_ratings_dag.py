@@ -15,6 +15,8 @@ def add_new_players():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
+
+    #DEBUG#
     # ✅ Ensure elo_rankings table exists
     create_elo_rankings_table_query = """
     CREATE TABLE IF NOT EXISTS elo_rankings (
@@ -52,6 +54,35 @@ def add_new_players():
 def calculate_elo():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
+    
+    #DEBUG#
+    cursor.execute("SELECT COUNT(*) FROM new_matches_log WHERE processed = FALSE")
+    print(f"Unprocessed matches in DB seen by Airflow: {cursor.fetchone()[0]}")
+
+    cursor.execute("SELECT current_database()")
+    print(f"Connected to DB: {cursor.fetchone()[0]}")
+
+        # ✅ Insert dummy test row into elo_match_log
+    try:
+        cursor.execute("""
+            INSERT INTO elo_match_log (
+                match_id, player1, player2,
+                player1_elo_before, player2_elo_before,
+                player1_elo_after, player2_elo_after,
+                elo_change_p1, elo_change_p2,
+                winner, match_date
+            )
+            VALUES (
+                999999, 'Test Player 1', 'Test Player 2',
+                1500, 1500, 1516, 1484,
+                16, -16, 'Test Player 1', CURRENT_TIMESTAMP
+            )
+            ON CONFLICT (match_id) DO NOTHING
+        """)
+        print("✅ Inserted dummy row into elo_match_log")
+    except Exception as e:
+        print(f"❌ Failed to insert dummy row: {e}")
+    #DEBUG#
 
     # ✅ Ensure `elo_match_log` table exists
     create_elo_log_table_query = """
