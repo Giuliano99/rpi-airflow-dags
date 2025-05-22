@@ -62,7 +62,7 @@ def calculate_elo():
     cursor.execute("SELECT current_database()")
     print(f"Connected to DB: {cursor.fetchone()[0]}")
 
-        # ✅ Insert dummy test row into elo_match_log
+    # ✅ Insert dummy test row into elo_match_log
     try:
         cursor.execute("""
             INSERT INTO elo_match_log (
@@ -73,9 +73,9 @@ def calculate_elo():
                 winner, match_date
             )
             VALUES (
-                999999, 'Test Player 1', 'Test Player 2',
+                23566, 'Littler L.', 'Bunting S.',
                 1500, 1500, 1516, 1484,
-                16, -16, 'Test Player 1', CURRENT_TIMESTAMP
+                16, -16, 'Littler L.', '2025-05-01'
             )
             ON CONFLICT (match_id) DO NOTHING
         """)
