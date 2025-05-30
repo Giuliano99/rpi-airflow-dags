@@ -84,26 +84,6 @@ def calculate_elo():
     cursor.execute(create_elo_log_table_query)
     conn.commit()
 
-    # ✅ Insert dummy test row into elo_match_log
-    try:
-        cursor.execute("""
-            INSERT INTO elo_match_log (
-                match_id, player1, player2,
-                player1_elo_before, player2_elo_before,
-                player1_elo_after, player2_elo_after,
-                elo_change_p1, elo_change_p2,
-                winner, match_date
-            )
-            VALUES (
-                23566, 'Littler L.', 'Bunting S.',
-                1500, 1500, 1516, 1484,
-                16, -16, 'Littler L.', '2025-05-01'
-            )
-            ON CONFLICT (match_id) DO NOTHING
-        """)
-        print("✅ Inserted dummy row into elo_match_log")
-    except Exception as e:
-        print(f"❌ Failed to insert dummy row: {e}")
 
     # ✅ Get new matches
     cursor.execute("""
