@@ -103,7 +103,7 @@ def calculate_elo():
         'van Gerwen M.', 'Aspinall N.', 'Price G.', 'Bunting S.',
         'Dobey C.', 'Cross R.', 'Littler L.', 'Humphries L.'
     )
-    ORDER BY matchdate ASC
+    ORDER BY matchdate ASC, match_id ASC
     """)
     matches = cursor.fetchall()
 
