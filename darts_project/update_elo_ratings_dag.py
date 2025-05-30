@@ -154,7 +154,6 @@ def calculate_elo():
         # Update Elo
         winner_elo_after, loser_elo_after, elo_gain, elo_loss = update_elo(winner_name, loser_name)
 
-        # Assign correct Elo after and changes based on who is player1 and player2
         if p1 == winner_name:
             p1_elo_after = winner_elo_after
             p2_elo_after = loser_elo_after
@@ -166,23 +165,20 @@ def calculate_elo():
             elo_change_p1 = elo_loss
             elo_change_p2 = elo_gain
 
+        # ✅ Now always insert and update (moved out of if-else)
+        cursor.execute("""
+            INSERT INTO elo_match_log (match_id, player1, player2, player1_elo_before, player2_elo_before,
+                                    player1_elo_after, player2_elo_after, elo_change_p1, elo_change_p2, winner, match_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (match_id) DO NOTHING;
+        """, (
+            match_id, p1, p2,
+            p1_elo_before, p2_elo_before,
+            p1_elo_after, p2_elo_after,
+            elo_change_p1, elo_change_p2,
+            winner, match_date
+        ))
 
-
-            # ✅ Insert Elo match log entry
-            cursor.execute("""
-                INSERT INTO elo_match_log (match_id, player1, player2, player1_elo_before, player2_elo_before,
-                                        player1_elo_after, player2_elo_after, elo_change_p1, elo_change_p2, winner, match_date)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (match_id) DO NOTHING;
-            """, (
-                match_id, p1, p2,
-                p1_elo_before, p2_elo_before,
-                p1_elo_after, p2_elo_after,
-                elo_change_p1, elo_change_p2,
-                winner, match_date
-            ))
-
-        # ✅ Mark match as processed
         cursor.execute("UPDATE new_matches_log SET processed = TRUE WHERE match_id = %s", (match_id,))
 
     # ✅ Update `elo_rankings` table
