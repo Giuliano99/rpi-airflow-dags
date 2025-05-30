@@ -145,15 +145,24 @@ def calculate_elo():
 
         # ✅ Update Elo ratings
         p1_is_winner = (winner == p1)
-        p1_elo_after, p2_elo_after, elo_change_winner, elo_change_loser = update_elo(winner, loser)
+        winner_name = winner
+        loser_name = p1 if winner == p2 else p2
 
-        # Assign changes to correct player columns
+        # Elo update
+        winner_elo_after, loser_elo_after, elo_gain, elo_loss = update_elo(winner_name, loser_name)
+
+        # Reconstruct after-Elo values in player1/player2 order
         if p1_is_winner:
-            elo_change_p1 = elo_change_winner
-            elo_change_p2 = elo_change_loser
+            p1_elo_after = winner_elo_after
+            p2_elo_after = loser_elo_after
+            elo_change_p1 = elo_gain
+            elo_change_p2 = elo_loss
         else:
-            elo_change_p1 = elo_change_loser
-            elo_change_p2 = elo_change_winner
+            p1_elo_after = loser_elo_after
+            p2_elo_after = winner_elo_after
+            elo_change_p1 = elo_loss
+            elo_change_p2 = elo_gain
+
 
             # ✅ Insert Elo match log entry
             cursor.execute("""
