@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime, timedelta
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from datetime import datetime
 import os
 
 # Set up Chrome options
@@ -86,7 +87,7 @@ try:
 
             try:
                 match_date_time = browser.find_element(By.CSS_SELECTOR, '.duelParticipant__startTime div').text
-                match_date = match_date_time.split(' ')[0]
+                match_date = datetime.strptime(match_date_time.split(' ')[0], "%d.%m.%Y").date()
                 match_info['Date'] = match_date
             except Exception as e:
                 print(f"Error extracting date/time: {e}")
