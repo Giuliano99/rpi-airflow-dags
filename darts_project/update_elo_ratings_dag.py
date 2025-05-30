@@ -143,16 +143,19 @@ def calculate_elo():
         p1_elo_before = elo_dict.get(p1, 1500)
         p2_elo_before = elo_dict.get(p2, 1500)
 
-        # ✅ Update Elo ratings
-        p1_is_winner = (winner == p1)
+       # Determine winner and loser
         winner_name = winner
-        loser_name = p1 if winner == p2 else p2
+        loser_name = p2 if winner == p1 else p1
 
-        # Elo update
+        # Elo before
+        p1_elo_before = elo_dict.get(p1, 1500)
+        p2_elo_before = elo_dict.get(p2, 1500)
+
+        # Update Elo
         winner_elo_after, loser_elo_after, elo_gain, elo_loss = update_elo(winner_name, loser_name)
 
-        # Reconstruct after-Elo values in player1/player2 order
-        if p1_is_winner:
+        # Assign correct Elo after and changes based on who is player1 and player2
+        if p1 == winner_name:
             p1_elo_after = winner_elo_after
             p2_elo_after = loser_elo_after
             elo_change_p1 = elo_gain
@@ -162,6 +165,7 @@ def calculate_elo():
             p2_elo_after = winner_elo_after
             elo_change_p1 = elo_loss
             elo_change_p2 = elo_gain
+
 
 
             # ✅ Insert Elo match log entry
