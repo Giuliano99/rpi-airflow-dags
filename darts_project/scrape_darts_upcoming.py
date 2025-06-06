@@ -1,4 +1,5 @@
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -14,7 +15,10 @@ def get_driver():
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--headless")
-    return webdriver.Chrome(options=options)
+
+    service = Service("/usr/bin/chromedriver")
+
+    return webdriver.Chrome(service=service, options=options)
 
 def hide_cookie_banner(driver):
     try:

@@ -25,7 +25,7 @@ with DAG(
     'scrape_darts_results_dag',
     default_args=default_args,
     description='Daily scrape of completed darts match results',
-    schedule_interval='00 21 * * *',  # Every day at 21:00
+    schedule_interval='00 12 * * *',  # Every day at 21:00
     start_date=datetime(2025, 1, 1, tzinfo=german_tz),
     catchup=False,
     tags=['darts', 'results'],
@@ -51,7 +51,7 @@ with DAG(
     'scrape_darts_upcoming_dag',
     default_args=default_args,
     description='Daily scrape of upcoming darts matches and odds',
-    schedule_interval='00 21 * * *',  # Same schedule, but can be changed independently
+    schedule_interval='00 12 * * *',  # Same schedule, but can be changed independently
     start_date=datetime(2025, 1, 1, tzinfo=german_tz),
     catchup=False,
     tags=['darts', 'upcoming'],
