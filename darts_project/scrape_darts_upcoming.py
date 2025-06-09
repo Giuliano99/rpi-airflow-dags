@@ -14,7 +14,7 @@ def get_driver():
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
-    options.add_argument("--headless")
+    #options.add_argument("--headless")
 
     service = Service("/usr/bin/chromedriver")
 
@@ -55,7 +55,7 @@ def extract_odds(driver):
                         odds_values.append(val if val != "-" else None)
                     except:
                         odds_values.append(None)
-                odds_data.append({"bookmaker": bookmaker, "odds": odds_values})
+                odds_data.append({"bookmaker": bookmaker, "quoten": odds_values})
             except:
                 continue
     except:
@@ -68,7 +68,7 @@ def main():
     match_data = []
 
     try:
-        driver.get("https://www.flashscore.com/darts/")
+        driver.get("https://www.flashscore.de/dart/")
         hide_cookie_banner(driver)
 
         # Navigate to tomorrow
@@ -84,7 +84,7 @@ def main():
 
         matches = driver.find_elements(By.CSS_SELECTOR, '.event__match')
 
-        for i in range(len(matches)):  # #len(matches)):
+        for i in range(2): #len(matches)):  # #len(matches)):
             try:
                 matches = driver.find_elements(By.CSS_SELECTOR, '.event__match')
                 match = matches[i]
@@ -97,7 +97,7 @@ def main():
                     continue
 
                 match_id_clean = match_id[4:].lstrip("_")
-                match_url = f"https://www.flashscore.com/match/darts/{match_id_clean}/#/match-summary/match-summary"
+                match_url = f"https://www.flashscore.de/spiel/dart/{match_id_clean}/#/spiel-zusammenfassung"
 
                 driver.execute_script("window.open('');")
                 driver.switch_to.window(driver.window_handles[-1])
@@ -118,7 +118,7 @@ def main():
                 odds = extract_odds(driver)
                 for book in odds:
                     bm = book.get("bookmaker", "Unknown")
-                    odds_values = book.get("odds", [])
+                    odds_values = book.get("quoten", [])
                     match_info[f"{bm}_P1"] = odds_values[0] if len(odds_values) > 0 else None
                     match_info[f"{bm}_P2"] = odds_values[1] if len(odds_values) > 1 else None
 
