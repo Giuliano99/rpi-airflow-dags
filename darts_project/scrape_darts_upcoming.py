@@ -14,7 +14,7 @@ def get_driver():
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
-    #options.add_argument("--headless")
+    options.add_argument("--headless")
 
     service = Service("/usr/bin/chromedriver")
 
@@ -39,28 +39,46 @@ def force_hide_overlay(driver):
 
 def extract_odds(driver):
     odds_data = []
+
     try:
+        print("⏳ Waiting for .section__prematchOdds to be present...")
         WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, '.section__prematchOdds'))
         )
+        print("✅ Found .section__prematchOdds")
+
         odds_blocks = driver.find_elements(By.CSS_SELECTOR, ".section__prematchOdds .wclOddsContent")
+        print(f"🔍 Found {len(odds_blocks)} odds blocks")
+
         for block in odds_blocks:
             try:
-                bookmaker = block.find_element(By.CSS_SELECTOR, ".bookmaker a").get_attribute("title")
+                bookmaker_el = block.find_element(By.CSS_SELECTOR, ".bookmaker a")
+                bookmaker = bookmaker_el.get_attribute("title")
+                print(f"📗 Bookmaker found: {bookmaker}")
+
                 odds_buttons = block.find_elements(By.CSS_SELECTOR, "button[data-testid='wcl-oddsCell']")
                 odds_values = []
+
                 for btn in odds_buttons:
                     try:
                         val = btn.find_element(By.CSS_SELECTOR, "span[data-testid='wcl-oddsValue']").text.strip()
                         odds_values.append(val if val != "-" else None)
-                    except:
+                    except Exception as e:
+                        print(f"⚠️ Couldn't extract odds value: {e}")
                         odds_values.append(None)
+
+                print(f"➡️ Odds: {odds_values}")
                 odds_data.append({"bookmaker": bookmaker, "quoten": odds_values})
-            except:
+
+            except Exception as e:
+                print(f"❌ Error in odds block: {e}")
                 continue
-    except:
-        pass
+
+    except Exception as e:
+        print(f"❌ Failed to find odds section: {e}")
+
     return odds_data
+
 
 def main():
     driver = get_driver()
@@ -84,7 +102,7 @@ def main():
 
         matches = driver.find_elements(By.CSS_SELECTOR, '.event__match')
 
-        for i in range(2): #len(matches)):  # #len(matches)):
+        for i in range(len(matches)):  # #len(matches)):
             try:
                 matches = driver.find_elements(By.CSS_SELECTOR, '.event__match')
                 match = matches[i]
