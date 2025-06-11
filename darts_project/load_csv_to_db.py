@@ -1,3 +1,4 @@
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import pandas as pd
@@ -175,7 +176,7 @@ with DAG(
 with DAG(
     "load_upcoming_matches",
     default_args=default_args,
-    schedule_interval="30 22 * * *",  # 22:30 daily
+    schedule_interval= None,
 ) as dag_upcoming:
 
     task_load_upcoming = PythonOperator(
@@ -183,4 +184,11 @@ with DAG(
         python_callable=load_upcoming_matches
     )
 
-    task_load_upcoming
+
+    trigger_transform_dag = TriggerDagRunOperator(
+        task_id="trigger_transform_upcoming",
+        trigger_dag_id="transform_upcoming",  
+    )
+
+    task_load_upcoming >> trigger_transform_dag
+

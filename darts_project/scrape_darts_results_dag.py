@@ -1,3 +1,4 @@
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
@@ -69,3 +70,10 @@ with DAG(
         task_id='scrape_darts_upcoming_task',
         python_callable=run_scrape_darts_upcoming_script,
     )
+
+    trigger_load_dag = TriggerDagRunOperator(
+    task_id="trigger_load_upcoming_matches",
+    trigger_dag_id="load_upcoming_matches",
+)
+    scrape_upcoming_task >> trigger_load_dag
+

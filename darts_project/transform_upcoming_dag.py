@@ -6,7 +6,6 @@ from transform_upcoming import transform_upcoming
 with DAG(
     dag_id="transform_upcoming",
     start_date=datetime(2025, 2, 2),
-    schedule_interval="0 23 * * *",  # Runs daily at 23:00
     catchup=False
 ) as dag:
 
