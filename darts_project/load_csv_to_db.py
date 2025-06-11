@@ -108,7 +108,13 @@ def load_upcoming_matches():
         matchdate DATE,
         player1 VARCHAR(100),
         player2 VARCHAR(100),
-        odds JSONB
+        odds JSONB,
+        best_odd_player1 FLOAT,
+        win_prob_player1 FLOAT,
+        best_odd_player2 FLOAT,
+        win_prob_player2 FLOAT
+);
+
     );
     """)
     conn.commit()
