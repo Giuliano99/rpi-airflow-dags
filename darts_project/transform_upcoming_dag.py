@@ -19,7 +19,7 @@ with DAG(
 
     transform_task = PythonOperator(
         task_id="calculate_best_odds_and_probs",
-        python_callable=transform_upcoming
+        python_callable=transform_upcoming_odds
     )
 
     transform_task
