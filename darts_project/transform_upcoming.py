@@ -16,22 +16,20 @@ def transform_upcoming_odds():
 
     for _, row in df.iterrows():
         match_id = row["id"]
-        odds_json = row["odds"]
+        odds_data = row["odds"]
 
-        if not odds_json:
+        if not odds_data or not isinstance(odds_data, dict):
             continue
 
-        # Odds columns should look like: Bookmaker_P1, Bookmaker_P2
         try:
-            parsed = json.loads(odds_json)
             p1_odds = []
             p2_odds = []
 
-            for key, val in parsed.items():
+            for key, val in odds_data.items():
                 try:
-                    if "_P1" in key:
+                    if "_P1" in key and val is not None:
                         p1_odds.append(float(val))
-                    elif "_P2" in key:
+                    elif "_P2" in key and val is not None:
                         p2_odds.append(float(val))
                 except ValueError:
                     continue  # Skip non-floatable odds
@@ -57,6 +55,7 @@ def transform_upcoming_odds():
         except Exception as e:
             print(f"Failed on row ID {match_id}: {e}")
             continue
+
 
     conn.commit()
     cursor.close()
