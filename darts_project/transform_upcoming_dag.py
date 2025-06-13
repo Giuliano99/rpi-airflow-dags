@@ -1,7 +1,15 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from datetime import datetime
-from transform_upcoming import transform_upcoming
+from datetime import datetime, timedelta
+import sys
+import os
+
+# Make sure local files can be imported
+sys.path.append(os.path.dirname(__file__))
+
+# Now this will work
+from transform_upcoming import transform_upcoming_odds
+
 
 with DAG(
     dag_id="transform_upcoming",
