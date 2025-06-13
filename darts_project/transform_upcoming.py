@@ -43,14 +43,21 @@ def transform_upcoming_odds():
             win_prob_p1 = 1 / best_p1 if best_p1 else None
             win_prob_p2 = 1 / best_p2 if best_p2 else None
 
+            implied_margin = None
+
+            if win_prob_p1 is not None and win_prob_p2 is not None:
+                implied_margin = (win_prob_p1 + win_prob_p2) - 1
+
             cursor.execute("""
                 UPDATE upcoming_matches
                 SET best_odd_player1 = %s,
                     win_prob_player1 = %s,
                     best_odd_player2 = %s,
-                    win_prob_player2 = %s
+                    win_prob_player2 = %s,
+                    implied_margin = %s
                 WHERE id = %s
-            """, (best_p1, win_prob_p1, best_p2, win_prob_p2, match_id))
+            """, (best_p1, win_prob_p1, best_p2, win_prob_p2, implied_margin, match_id))
+
 
         except Exception as e:
             print(f"Failed on row ID {match_id}: {e}")
