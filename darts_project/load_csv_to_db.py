@@ -114,7 +114,9 @@ def load_upcoming_matches():
         win_prob_player1 FLOAT,
         best_odd_player2 FLOAT,
         win_prob_player2 FLOAT,
-        implied_margin FLOAT
+        implied_margin FLOAT,
+        elo_prob_player1 FLOAT,
+        elo_prob_player2 FLOAT
     );
     """)
     conn.commit()
