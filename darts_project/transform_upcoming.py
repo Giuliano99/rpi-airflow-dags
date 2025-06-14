@@ -24,7 +24,12 @@ def transform_upcoming_odds_and_update_elo():
         match_id = row["id"]
         player1 = row["player1"]
         player2 = row["player2"]
-        odds_data = row["odds"]
+        odds_data_raw = row["odds"]
+        try:
+            odds_data = json.loads(odds_data_raw) if isinstance(odds_data_raw, str) else odds_data_raw
+        except Exception:
+            continue  # skip if odds data is corrupted
+
 
         if not odds_data or not isinstance(odds_data, dict):
             continue
