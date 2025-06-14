@@ -31,18 +31,10 @@ def add_new_players():
     insert_new_players_query = """
         INSERT INTO elo_rankings (player, elo)
         SELECT DISTINCT player1, 1500 FROM dart_matches
-        WHERE player1 IN (
-            'van Gerwen M.', 'Aspinall N.', 'Price G.', 'Bunting S.',
-            'Dobey C.', 'Cross R.', 'Littler L.', 'Humphries L.'
-        )
-        AND player1 NOT IN (SELECT player FROM elo_rankings)
+        WHERE player1 NOT IN (SELECT player FROM elo_rankings)
         UNION
         SELECT DISTINCT player2, 1500 FROM dart_matches
-        WHERE player2 IN (
-            'van Gerwen M.', 'Aspinall N.', 'Price G.', 'Bunting S.',
-            'Dobey C.', 'Cross R.', 'Littler L.', 'Humphries L.'
-        )
-        AND player2 NOT IN (SELECT player FROM elo_rankings);
+        WHERE player2 NOT IN (SELECT player FROM elo_rankings);
     """
     cursor.execute(insert_new_players_query)
     conn.commit()
@@ -92,16 +84,6 @@ def calculate_elo():
     WHERE match_id IN (
         SELECT match_id FROM new_matches_log
         WHERE processed = FALSE
-    )
-    AND matchdate >= '2025-02-06'
-    AND EXTRACT(DOW FROM matchdate::timestamp) = 4
-    AND player1 IN (
-        'van Gerwen M.', 'Aspinall N.', 'Price G.', 'Bunting S.',
-        'Dobey C.', 'Cross R.', 'Littler L.', 'Humphries L.'
-    )
-    AND player2 IN (
-        'van Gerwen M.', 'Aspinall N.', 'Price G.', 'Bunting S.',
-        'Dobey C.', 'Cross R.', 'Littler L.', 'Humphries L.'
     )
     ORDER BY matchdate ASC, match_id ASC
     """)
