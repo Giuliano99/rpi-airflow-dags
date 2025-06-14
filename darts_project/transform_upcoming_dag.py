@@ -8,7 +8,7 @@ import os
 sys.path.append(os.path.dirname(__file__))
 
 # Now this will work
-from transform_upcoming import transform_upcoming_odds
+from transform_upcoming import transform_upcoming_odds_and_update_elo
 
 
 with DAG(
@@ -19,7 +19,7 @@ with DAG(
 
     transform_task = PythonOperator(
         task_id="calculate_best_odds_and_probs",
-        python_callable=transform_upcoming_odds
+        python_callable=transform_upcoming_odds_and_update_elo
     )
 
     transform_task

@@ -70,7 +70,7 @@ def transform_upcoming_odds_and_update_elo():
                     elo_prob_player1 = %s,
                     elo_prob_player2 = %s
                 WHERE id = %s
-            """, (
+                """, (
                 best_p1, win_prob_p1, best_p2, win_prob_p2, implied_margin,
                 expected1, expected2, match_id
             ))
