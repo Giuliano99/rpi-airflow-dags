@@ -9,6 +9,16 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from datetime import datetime
 import os
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # or DEBUG for verbose logs
+
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 # Set up Chrome options
 options = Options()
@@ -58,17 +68,20 @@ try:
     print(f"Found {len(matches)} matches")
 
     for i in range(len(matches)):
+        logger.debug(f"Processing match index {i}")
         try:
             matches = browser.find_elements(By.CSS_SELECTOR, '.event__match')
             match_element = matches[i]
 
             if 'event__match__header' in match_element.get_attribute('class'):
-                print(f"Skipping non-match element at index {i}")
+                logger.info(f"Skipping header/non-match element at index {i}")
+                #print(f"Skipping non-match element at index {i}")
                 continue
 
             match_id = match_element.get_attribute("id")
             if not match_id:
-                print(f"No match ID found for index {i}")
+                logger.info(f"Skipping header/non-match element at index {i}")
+                #print(f"No match ID found for index {i}")
                 continue
             match_id_cleaned = match_id[4:].lstrip("_")
 
@@ -90,7 +103,8 @@ try:
                 match_date = datetime.strptime(match_date_time.split(' ')[0], "%d.%m.%Y").date()
                 match_info['Date'] = match_date
             except Exception as e:
-                print(f"Error extracting date/time: {e}")
+                logger.warning("Error extracting date/time", exc_info=True)
+                #print(f"Error extracting date/time: {e}")
 
             try:
                 player_1 = browser.find_element(By.CSS_SELECTOR, '.duelParticipant__home .participant__participantName').text
@@ -98,7 +112,8 @@ try:
                 match_info['Player 1'] = player_1
                 match_info['Player 2'] = player_2
             except Exception as e:
-                print(f"Error extracting players: {e}")
+                logger.warning("Error extracting players", exc_info=True)
+                #print(f"Error extracting players: {e}")
 
             try:
                 score_player_1 = browser.find_element(By.CSS_SELECTOR, '.detailScore__wrapper span:nth-child(1)').text
@@ -108,7 +123,9 @@ try:
                 match_info['Player 2 Score'] = score_player_2
                 match_info['Winner'] = winner
             except Exception as e:
-                print(f"Error extracting result: {e}")
+                #print(f"Error extracting result: {e}")
+                logger.error("Error extracting result", exc_info=True)
+
 
             try:
                 statistic_rows = browser.find_elements(By.CSS_SELECTOR, '.wcl-row_OFViZ')
@@ -123,7 +140,8 @@ try:
                 match_info['Average Player 1'] = average_player_1
                 match_info['Average Player 2'] = average_player_2
             except Exception as e:
-                print(f"Error extracting averages: {e}")
+                logger.warning("Error extracting averages", exc_info=True)
+                #print(f"Error extracting averages: {e}")
 
             match_data_list.append(match_info)
 
@@ -135,12 +153,14 @@ try:
             time.sleep(1)
 
         except Exception as e:
-            print(f"Error processing match at index {i}: {e}")
+            logger.error(f"Error processing match at index {i}", exc_info=True)
+            #print(f"Error processing match at index {i}: {e}")
             browser.switch_to.window(original_window)
             continue
 
 except Exception as e:
-    print(f"Top-level error: {e}")
+    logger.critical("Top-level error occurred", exc_info=True)
+    #print(f"Top-level error: {e}")
 finally:
     browser.quit()
 
@@ -148,12 +168,15 @@ finally:
 df = pd.DataFrame(match_data_list)
 
 if df.empty:
-    print("⚠️ No matches found. CSV file will not be created.")
+    #print("⚠️ No matches found. CSV file will not be created.")
+    logger.warning("No matches found. CSV file will not be created.")
+
 else:
     current_date = (datetime.now() - timedelta(days=days_to_go_back)).strftime('%Y-%m-%d')
     output_folder = os.path.expanduser("~/airflow/darts_results")
     os.makedirs(output_folder, exist_ok=True)
     csv_filename = os.path.join(output_folder, f"match_data_airflow_{current_date}.csv")
     df.to_csv(csv_filename, index=False)
-    print(f"✅ Data saved to {csv_filename}")
+    logger.info(f"Data saved to {csv_filename}")
+
     print(df)

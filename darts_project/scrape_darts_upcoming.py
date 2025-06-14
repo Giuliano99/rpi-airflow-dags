@@ -7,6 +7,17 @@ from selenium.webdriver.chrome.options import Options
 from datetime import datetime, timedelta
 import pandas as pd
 import os
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # or DEBUG for verbose logs
+
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 
 def get_driver():
     options = Options()
