@@ -122,7 +122,7 @@ def load_upcoming_matches():
         brier_elo FLOAT,
         brier_bookmaker FLOAT,
         logloss_elo FLOAT,
-        logloss_bookmaker FLOAT;           
+        logloss_bookmaker FLOAT,           
         winner VARCHAR(100),
         UNIQUE (matchdate, player1, player2)
     );
