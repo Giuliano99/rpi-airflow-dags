@@ -117,6 +117,7 @@ def load_upcoming_matches():
         implied_margin FLOAT,
         elo_prob_player1 FLOAT,
         elo_prob_player2 FLOAT,
+        winner VARCHAR(100),
         UNIQUE (matchdate, player1, player2
     );
     """)

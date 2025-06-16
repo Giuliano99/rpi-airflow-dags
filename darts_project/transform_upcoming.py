@@ -13,7 +13,7 @@ def transform_upcoming_odds_and_update_elo():
     )
     cursor = conn.cursor()
 
-    # Fetch Elo ratings
+    # Fetch current Elo ratings
     cursor.execute("SELECT player, elo FROM elo_rankings")
     elo_dict = {row[0]: row[1] for row in cursor.fetchall()}
 
@@ -25,11 +25,11 @@ def transform_upcoming_odds_and_update_elo():
         player1 = row["player1"]
         player2 = row["player2"]
         odds_data_raw = row["odds"]
+
         try:
             odds_data = json.loads(odds_data_raw) if isinstance(odds_data_raw, str) else odds_data_raw
         except Exception:
             continue  # skip if odds data is corrupted
-
 
         if not odds_data or not isinstance(odds_data, dict):
             continue
@@ -58,27 +58,46 @@ def transform_upcoming_odds_and_update_elo():
             if win_prob_p1 is not None and win_prob_p2 is not None:
                 implied_margin = (win_prob_p1 + win_prob_p2) - 1
 
-            # --- Elo-based probabilities ---
-            elo1 = elo_dict.get(player1, 1500)
-            elo2 = elo_dict.get(player2, 1500)
-            expected1 = 1 / (1 + 10 ** ((elo2 - elo1) / 400))
-            expected2 = 1 - expected1
-
-            # --- Update DB ---
+            # Check if Elo probs are already set
             cursor.execute("""
-                UPDATE upcoming_matches
-                SET best_odd_player1 = %s,
-                    win_prob_player1 = %s,
-                    best_odd_player2 = %s,
-                    win_prob_player2 = %s,
-                    implied_margin = %s,
-                    elo_prob_player1 = %s,
-                    elo_prob_player2 = %s
-                WHERE id = %s
+                SELECT elo_prob_player1, elo_prob_player2 FROM upcoming_matches WHERE id = %s
+            """, (match_id,))
+            existing_elo_probs = cursor.fetchone()
+
+            if existing_elo_probs is None or (existing_elo_probs[0] is None and existing_elo_probs[1] is None):
+                # Elo not yet calculated — compute and update all fields
+                elo1 = elo_dict.get(player1, 1500)
+                elo2 = elo_dict.get(player2, 1500)
+                expected1 = 1 / (1 + 10 ** ((elo2 - elo1) / 400))
+                expected2 = 1 - expected1
+
+                cursor.execute("""
+                    UPDATE upcoming_matches
+                    SET best_odd_player1 = %s,
+                        win_prob_player1 = %s,
+                        best_odd_player2 = %s,
+                        win_prob_player2 = %s,
+                        implied_margin = %s,
+                        elo_prob_player1 = %s,
+                        elo_prob_player2 = %s
+                    WHERE id = %s
                 """, (
-                best_p1, win_prob_p1, best_p2, win_prob_p2, implied_margin,
-                expected1, expected2, match_id
-            ))
+                    best_p1, win_prob_p1, best_p2, win_prob_p2, implied_margin,
+                    expected1, expected2, match_id
+                ))
+            else:
+                # Elo already set — only update odds fields
+                cursor.execute("""
+                    UPDATE upcoming_matches
+                    SET best_odd_player1 = %s,
+                        win_prob_player1 = %s,
+                        best_odd_player2 = %s,
+                        win_prob_player2 = %s,
+                        implied_margin = %s
+                    WHERE id = %s
+                """, (
+                    best_p1, win_prob_p1, best_p2, win_prob_p2, implied_margin, match_id
+                ))
 
         except Exception as e:
             print(f"Failed on row ID {match_id}: {e}")
@@ -87,4 +106,4 @@ def transform_upcoming_odds_and_update_elo():
     conn.commit()
     cursor.close()
     conn.close()
-    print("Updated upcoming_matches with odds and Elo-based probabilities.")
+    print("Updated upcoming_matches with odds and Elo-based probabilities (only if not already set).")
