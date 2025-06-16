@@ -116,7 +116,8 @@ def load_upcoming_matches():
         win_prob_player2 FLOAT,
         implied_margin FLOAT,
         elo_prob_player1 FLOAT,
-        elo_prob_player2 FLOAT
+        elo_prob_player2 FLOAT,
+        UNIQUE (matchdate, player1, player2
     );
     """)
     conn.commit()
@@ -144,10 +145,14 @@ def load_upcoming_matches():
             odds = {col: row[col] for col in df.columns if col not in ['Date', 'Player 1', 'Player 2'] and row[col] != ''}
 
             cursor.execute("""
-                INSERT INTO upcoming_matches (matchdate, player1, player2, odds)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT DO NOTHING;
-            """, (matchdate, player1, player2, psycopg2.extras.Json(odds)))
+                SELECT 1 FROM upcoming_matches WHERE matchdate = %s AND player1 = %s AND player2 = %s
+            """, (matchdate, player1, player2))
+            if cursor.fetchone() is None:
+                cursor.execute("""
+                    INSERT INTO upcoming_matches (matchdate, player1, player2, odds)
+                    VALUES (%s, %s, %s, %s)
+                """, (matchdate, player1, player2, psycopg2.extras.Json(odds)))
+
 
     conn.commit()
     cursor.close()
