@@ -9,6 +9,7 @@ import great_expectations as ge
 import psycopg2.extras
 from great_expectations.dataset import PandasDataset
 
+
 # PostgreSQL Config
 DB_CONFIG = {
     "host": "172.17.0.2",

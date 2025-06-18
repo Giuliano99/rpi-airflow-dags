@@ -29,7 +29,7 @@ with DAG(
 ) as dag2:
 
     def run_scrape_all_darts_script():
-        script_path = os.path.join(os.path.dirname(__file__), 'scrape_all_darts.py')
+        script_path = os.path.join(os.path.dirname(__file__), 'scrape_past_tournaments.py')
         print(f"Attempting to run: {script_path}")  # Debug print
 
         if not os.path.exists(script_path):
