@@ -54,7 +54,7 @@ def load_csv_to_postgres():
         if df.empty:
             continue
 
-        ge_df = ge.from_pandas(df)
+        ge_df = PandasDataset(df)
 
         # Great Expectations checks
         ge_df.expect_table_columns_to_match_ordered_list(['Date', 'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'])
@@ -137,7 +137,7 @@ def load_upcoming_matches():
 
         df.fillna('', inplace=True)
 
-        ge_df = ge.from_pandas(df)
+        ge_df = PandasDataset(df)
 
         # Great Expectations checks
         ge_df.expect_table_columns_to_contain(['Date', 'Player 1', 'Player 2'])

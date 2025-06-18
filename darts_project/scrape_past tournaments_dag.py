@@ -22,7 +22,7 @@ german_tz = timezone("Europe/Berlin")
 # DAG 2: Scrape All Darts Tournaments
 # ─────────────────────────────────────────────
 with DAG(
-    'scrape_all_darts_results_dag',
+    'scrape_past_tournaments',
     default_args=default_args,
     description='Daily scrape of all darts tournaments and results',
     schedule_interval='30 23 * * *',  # Every day at 23:30
