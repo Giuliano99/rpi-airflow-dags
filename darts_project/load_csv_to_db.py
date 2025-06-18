@@ -1,12 +1,14 @@
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from datetime import datetime
 import pandas as pd
 import psycopg2
 import os
-from datetime import datetime
+import great_expectations as ge
+import psycopg2.extras
 
-# PostgreSQL Connection
+# PostgreSQL Config
 DB_CONFIG = {
     "host": "172.17.0.2",
     "port": "5432",
@@ -15,15 +17,15 @@ DB_CONFIG = {
     "password": "5ads15"
 }
 
-# CSV paths
 CSV_RESULTS_FOLDER = "/home/pi/airflow/darts_results"
 CSV_UPCOMING_FOLDER = "/home/pi/airflow/darts_upcoming"
 
-# === FUNCTION 1: Load Past Results ===
+# === Load Results CSV ===
 def load_csv_to_postgres():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
+    # Create Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS dart_matches (
         match_id SERIAL PRIMARY KEY,
@@ -34,14 +36,6 @@ def load_csv_to_postgres():
         player2score INT,
         winner VARCHAR(100),
         UNIQUE (player1, player2, matchdate)
-    );
-    """)
-    conn.commit()
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS new_matches_log (
-        match_id INT PRIMARY KEY REFERENCES dart_matches(match_id) ON DELETE CASCADE,
-        processed BOOLEAN DEFAULT FALSE
     );
     """)
     conn.commit()
@@ -59,46 +53,44 @@ def load_csv_to_postgres():
         if df.empty:
             continue
 
-        expected_columns = {'Date', 'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'}
-        if not expected_columns.issubset(df.columns):
-            print(f"⚠️ Skipping file with missing columns: {filename}")
-            continue
+        ge_df = ge.from_pandas(df)
 
-        df = df.fillna({'Date': "1970-01-01", 'Player 1': "Unknown", 'Player 2': "Unknown"})
+        # Great Expectations checks
+        ge_df.expect_table_columns_to_match_ordered_list(['Date', 'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'])
+        ge_df.expect_compound_columns_to_be_unique(['Date', 'Player 1', 'Player 2'])
+        ge_df.expect_column_values_to_not_be_null('Date')
+        ge_df.expect_column_values_to_not_be_null('Player 1')
+        ge_df.expect_column_values_to_not_be_null('Player 2')
+        ge_df.expect_column_values_to_not_be_null('Winner')
+
+        if not ge_df.validate().success:
+            print(f"❌ Validation failed for file {filename}. Skipping.")
+            continue
 
         for _, row in df.iterrows():
             try:
                 matchdate = str(row['Date'])
                 p1 = str(row['Player 1']).strip()
                 p2 = str(row['Player 2']).strip()
-                s1 = int(row['Player 1 Score']) if not pd.isna(row['Player 1 Score']) else 0
-                s2 = int(row['Player 2 Score']) if not pd.isna(row['Player 2 Score']) else 0
+                s1 = int(row['Player 1 Score']) if pd.notna(row['Player 1 Score']) else 0
+                s2 = int(row['Player 2 Score']) if pd.notna(row['Player 2 Score']) else 0
                 winner = str(row['Winner'])
 
                 cursor.execute("""
-                    SELECT match_id FROM dart_matches 
-                    WHERE player1 = %s AND player2 = %s AND matchdate = %s;
-                """, (p1, p2, matchdate))
+                    INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (player1, player2, matchdate) DO NOTHING;
+                """, (matchdate, p1, p2, s1, s2, winner))
 
-                if cursor.fetchone() is None:
-                    cursor.execute("""
-                        INSERT INTO dart_matches (matchdate, player1, player2, player1score, player2score, winner)
-                        VALUES (%s, %s, %s, %s, %s, %s) RETURNING match_id;
-                    """, (matchdate, p1, p2, s1, s2, winner))
-            except:
+            except Exception as e:
+                print(f"Failed row in {filename}: {e}")
                 continue
 
-    cursor.execute("""
-    INSERT INTO new_matches_log (match_id, processed)
-    SELECT match_id, FALSE FROM dart_matches
-    ON CONFLICT (match_id) DO NOTHING;
-    """)
     conn.commit()
-
     cursor.close()
     conn.close()
 
-# === FUNCTION 2: Load Upcoming Matches ===
+# === Load Upcoming Matches CSV ===
 def load_upcoming_matches():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
@@ -122,7 +114,7 @@ def load_upcoming_matches():
         brier_elo FLOAT,
         brier_bookmaker FLOAT,
         logloss_elo FLOAT,
-        logloss_bookmaker FLOAT,           
+        logloss_bookmaker FLOAT,
         winner VARCHAR(100),
         UNIQUE (matchdate, player1, player2)
     );
@@ -144,6 +136,19 @@ def load_upcoming_matches():
 
         df.fillna('', inplace=True)
 
+        ge_df = ge.from_pandas(df)
+
+        # Great Expectations checks
+        ge_df.expect_table_columns_to_contain(['Date', 'Player 1', 'Player 2'])
+        ge_df.expect_column_values_to_not_be_null('Date')
+        ge_df.expect_column_values_to_not_be_null('Player 1')
+        ge_df.expect_column_values_to_not_be_null('Player 2')
+        ge_df.expect_compound_columns_to_be_unique(['Date', 'Player 1', 'Player 2'])
+
+        if not ge_df.validate().success:
+            print(f"❌ Validation failed for file {filename}. Skipping.")
+            continue
+
         for _, row in df.iterrows():
             matchdate = row.get('Date', '1970-01-01')
             player1 = str(row.get('Player 1', 'Unknown')).strip()
@@ -151,21 +156,20 @@ def load_upcoming_matches():
 
             odds = {col: row[col] for col in df.columns if col not in ['Date', 'Player 1', 'Player 2'] and row[col] != ''}
 
-            cursor.execute("""
-                SELECT 1 FROM upcoming_matches WHERE matchdate = %s AND player1 = %s AND player2 = %s
-            """, (matchdate, player1, player2))
-            if cursor.fetchone() is None:
+            try:
                 cursor.execute("""
                     INSERT INTO upcoming_matches (matchdate, player1, player2, odds)
                     VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (matchdate, player1, player2) DO NOTHING;
                 """, (matchdate, player1, player2, psycopg2.extras.Json(odds)))
-
+            except Exception as e:
+                print(f"Insert error in upcoming match {filename}: {e}")
 
     conn.commit()
     cursor.close()
     conn.close()
 
-# === DAG 1: Load Results ===
+# === DAG Definitions ===
 default_args = {
     "owner": "airflow",
     "start_date": datetime(2025, 2, 2),
@@ -175,7 +179,7 @@ default_args = {
 with DAG(
     "load_darts_results",
     default_args=default_args,
-    schedule_interval="10 21 * * *",  # 21:10 daily
+    schedule_interval="10 21 * * *",
 ) as dag_results:
 
     task_load_csv = PythonOperator(
@@ -185,11 +189,10 @@ with DAG(
 
     task_load_csv
 
-# === DAG 2: Load Upcoming Matches ===
 with DAG(
     "load_upcoming_matches",
     default_args=default_args,
-    schedule_interval= None,
+    schedule_interval=None,
 ) as dag_upcoming:
 
     task_load_upcoming = PythonOperator(
@@ -197,11 +200,9 @@ with DAG(
         python_callable=load_upcoming_matches
     )
 
-
     trigger_transform_dag = TriggerDagRunOperator(
         task_id="trigger_transform_upcoming",
-        trigger_dag_id="transform_upcoming",  
+        trigger_dag_id="transform_upcoming"
     )
 
     task_load_upcoming >> trigger_transform_dag
-
