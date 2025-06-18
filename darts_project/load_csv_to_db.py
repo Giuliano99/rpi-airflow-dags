@@ -7,8 +7,8 @@ import psycopg2
 import os
 import great_expectations as ge
 import psycopg2.extras
-from great_expectations.dataset import PandasDataset
-
+from great_expectations.data_context import get_context
+from great_expectations.core.batch import RuntimeBatchRequest
 
 # PostgreSQL Config
 DB_CONFIG = {
@@ -21,6 +21,23 @@ DB_CONFIG = {
 
 CSV_RESULTS_FOLDER = "/home/pi/airflow/darts_results"
 CSV_UPCOMING_FOLDER = "/home/pi/airflow/darts_upcoming"
+
+# === GE Utility ===
+def validate_with_expectations(df, expectation_suite_name):
+    context = get_context()
+    batch_request = RuntimeBatchRequest(
+        datasource_name="default_pandas_datasource",
+        data_connector_name="default_runtime_data_connector_name",
+        data_asset_name="temp_asset",
+        runtime_parameters={"batch_data": df},
+        batch_identifiers={"default_identifier": "temp_id"}
+    )
+    validator = context.get_validator(
+        batch_request=batch_request,
+        expectation_suite_name=expectation_suite_name
+    )
+    results = validator.validate()
+    return results.success
 
 # === Load Results CSV ===
 def load_csv_to_postgres():
@@ -55,17 +72,7 @@ def load_csv_to_postgres():
         if df.empty:
             continue
 
-        ge_df = PandasDataset(df)
-
-        # Great Expectations checks
-        ge_df.expect_table_columns_to_match_ordered_list(['Date', 'Player 1', 'Player 2', 'Player 1 Score', 'Player 2 Score', 'Winner'])
-        ge_df.expect_compound_columns_to_be_unique(['Date', 'Player 1', 'Player 2'])
-        ge_df.expect_column_values_to_not_be_null('Date')
-        ge_df.expect_column_values_to_not_be_null('Player 1')
-        ge_df.expect_column_values_to_not_be_null('Player 2')
-        ge_df.expect_column_values_to_not_be_null('Winner')
-
-        if not ge_df.validate().success:
+        if not validate_with_expectations(df, "darts_results_suite"):
             print(f"❌ Validation failed for file {filename}. Skipping.")
             continue
 
@@ -138,16 +145,7 @@ def load_upcoming_matches():
 
         df.fillna('', inplace=True)
 
-        ge_df = PandasDataset(df)
-
-        # Great Expectations checks
-        ge_df.expect_table_columns_to_contain(['Date', 'Player 1', 'Player 2'])
-        ge_df.expect_column_values_to_not_be_null('Date')
-        ge_df.expect_column_values_to_not_be_null('Player 1')
-        ge_df.expect_column_values_to_not_be_null('Player 2')
-        ge_df.expect_compound_columns_to_be_unique(['Date', 'Player 1', 'Player 2'])
-
-        if not ge_df.validate().success:
+        if not validate_with_expectations(df, "upcoming_matches_suite"):
             print(f"❌ Validation failed for file {filename}. Skipping.")
             continue
 
