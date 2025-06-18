@@ -24,22 +24,20 @@ german_tz = timezone("Europe/Berlin")
 with DAG(
     'scrape_past_tournaments',
     default_args=default_args,
-    description='Daily scrape of all darts tournaments and results',
-    schedule_interval='30 23 * * *',  # Every day at 23:30
-    start_date=datetime(2025, 1, 1, tzinfo=german_tz),
     catchup=False,
     tags=['darts', 'tournaments'],
 ) as dag2:
 
     def run_scrape_all_darts_script():
         script_path = os.path.join(os.path.dirname(__file__), 'scrape_all_darts.py')
+        print(f"Attempting to run: {script_path}")  # Debug print
+
+        if not os.path.exists(script_path):
+            raise FileNotFoundError(f"Script not found: {script_path}")
+
         try:
             result = subprocess.run(['python3', script_path], check=True, capture_output=True, text=True)
             print(result.stdout)
         except subprocess.CalledProcessError as e:
-            print(f"Error executing all-tournaments script: {e.stderr}")
-
-    scrape_all_task = PythonOperator(
-        task_id='scrape_past_tournaments',
-        python_callable=run_scrape_all_darts_script,
-    )
+            print(f"Error executing script: {e.stderr}")
+            raise  # Ensure task is marked as failed
