@@ -7,6 +7,7 @@ import psycopg2
 import os
 import great_expectations as ge
 import psycopg2.extras
+from great_expectations.dataset import PandasDataset
 
 # PostgreSQL Config
 DB_CONFIG = {

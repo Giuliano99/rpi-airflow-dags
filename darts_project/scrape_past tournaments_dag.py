@@ -40,6 +40,6 @@ with DAG(
             print(f"Error executing all-tournaments script: {e.stderr}")
 
     scrape_all_task = PythonOperator(
-        task_id='scrape_all_darts_task',
+        task_id='scrape_past_tournaments',
         python_callable=run_scrape_all_darts_script,
     )
