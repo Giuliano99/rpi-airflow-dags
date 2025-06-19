@@ -10,7 +10,8 @@ import psycopg2.extras
 from great_expectations.data_context import get_context
 from great_expectations.core.batch import RuntimeBatchRequest
 
-# PostgreSQL Config
+
+# === Config ===
 DB_CONFIG = {
     "host": "172.17.0.2",
     "port": "5432",
@@ -22,7 +23,30 @@ DB_CONFIG = {
 CSV_RESULTS_FOLDER = "/home/pi/airflow/darts_results"
 CSV_UPCOMING_FOLDER = "/home/pi/airflow/darts_upcoming"
 
+
 # === GE Utility ===
+def ensure_expectation_suite(suite_name, sample_df):
+    context = get_context()
+    try:
+        context.get_expectation_suite(suite_name)
+    except Exception:
+        context.create_expectation_suite(suite_name)
+        batch_request = RuntimeBatchRequest(
+            datasource_name="default_pandas_datasource",
+            data_connector_name="default_runtime_data_connector_name",
+            data_asset_name="temp_asset",
+            runtime_parameters={"batch_data": sample_df},
+            batch_identifiers={"default_identifier": "temp_id"}
+        )
+        validator = context.get_validator(batch_request=batch_request, expectation_suite_name=suite_name)
+        # Minimal expectations
+        for col in sample_df.columns:
+            validator.expect_column_to_exist(col)
+        if "Date" in sample_df.columns:
+            validator.expect_column_values_to_not_be_null("Date")
+        context.save_expectation_suite(validator.get_expectation_suite())
+
+
 def validate_with_expectations(df, expectation_suite_name):
     context = get_context()
     batch_request = RuntimeBatchRequest(
@@ -39,12 +63,12 @@ def validate_with_expectations(df, expectation_suite_name):
     results = validator.validate()
     return results.success
 
+
 # === Load Results CSV ===
 def load_csv_to_postgres():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
-    # Create Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS dart_matches (
         match_id SERIAL PRIMARY KEY,
@@ -71,6 +95,8 @@ def load_csv_to_postgres():
         df = pd.read_csv(file_path)
         if df.empty:
             continue
+
+        ensure_expectation_suite("darts_results_suite", df)
 
         if not validate_with_expectations(df, "darts_results_suite"):
             print(f"❌ Validation failed for file {filename}. Skipping.")
@@ -99,7 +125,8 @@ def load_csv_to_postgres():
     cursor.close()
     conn.close()
 
-# === Load Upcoming Matches CSV ===
+
+# === Load Upcoming Matches ===
 def load_upcoming_matches():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
@@ -145,6 +172,8 @@ def load_upcoming_matches():
 
         df.fillna('', inplace=True)
 
+        ensure_expectation_suite("upcoming_matches_suite", df)
+
         if not validate_with_expectations(df, "upcoming_matches_suite"):
             print(f"❌ Validation failed for file {filename}. Skipping.")
             continue
@@ -168,6 +197,7 @@ def load_upcoming_matches():
     conn.commit()
     cursor.close()
     conn.close()
+
 
 # === DAG Definitions ===
 default_args = {
