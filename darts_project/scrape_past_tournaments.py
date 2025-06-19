@@ -29,50 +29,99 @@ def make_browser():
     return webdriver.Chrome(service=service, options=options)
 
 # Collect tournament URLs from the left menu
+# def get_tournament_links(browser, base_url="https://www.flashscore.com"):
+#     browser.get(base_url + "/darts/")
+#     wait = WebDriverWait(browser, 10)
+
+#     # Wait for left menu to load
+#     wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".lmc__element")))
+
+#     # Expand all regions
+#     regions = browser.find_elements(By.CSS_SELECTOR, ".lmc__element")
+#     for region in regions:
+#         try:
+#             browser.execute_script("arguments[0].scrollIntoView(true);", region)
+#             region.click()
+#             time.sleep(1)
+#         except Exception as e:
+#             logger.warning(f"Couldn't expand region: {e}")
+#             continue
+
+#     # Get only expanded blocks
+#     expanded_blocks = browser.find_elements(By.CSS_SELECTOR, ".lmc__block.lmc__blockOpened")
+#     logger.info(f"Found {len(expanded_blocks)} expanded countries.")
+
+#     tournaments = []
+#     for block in expanded_blocks:
+#         try:
+#             country_name = block.find_element(By.CSS_SELECTOR, ".lmc__elementName").text.strip()
+#             league_links = block.find_elements(By.CSS_SELECTOR, ".lmc__templateHref")
+
+#             for link in league_links:
+#                 name = link.text.strip()
+#                 href = link.get_attribute("href")
+#                 if name and href:
+#                     if not href.startswith("http"):
+#                         href = base_url + href
+#                     full_url = href.rstrip("/") + "/results/"
+#                     full_name = f"{country_name} - {name}"
+#                     tournaments.append((full_name, full_url))
+
+#         except Exception as e:
+#             logger.warning(f"Error processing block: {e}")
+#             continue
+
+#     logger.info(f"Found {len(tournaments)} tournaments under expanded countries.")
+#     return tournaments
 def get_tournament_links(browser, base_url="https://www.flashscore.com"):
     browser.get(base_url + "/darts/")
     wait = WebDriverWait(browser, 10)
 
-    # Wait for left menu to load
+    # Wait for regions to load
     wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".lmc__element")))
 
-    # Expand all regions
+    # Locate and expand only "World"
+    world_region = None
     regions = browser.find_elements(By.CSS_SELECTOR, ".lmc__element")
     for region in regions:
         try:
-            browser.execute_script("arguments[0].scrollIntoView(true);", region)
-            region.click()
-            time.sleep(1)
+            name = region.find_element(By.CSS_SELECTOR, ".lmc__elementName").text.strip().lower()
+            if name == "world":
+                world_region = region
+                browser.execute_script("arguments[0].scrollIntoView(true);", region)
+                region.click()
+                time.sleep(1)
+                break
         except Exception as e:
-            logger.warning(f"Couldn't expand region: {e}")
-            continue
+            logger.warning(f"Error locating or clicking 'World': {e}")
 
-    # Get only expanded blocks
-    expanded_blocks = browser.find_elements(By.CSS_SELECTOR, ".lmc__block.lmc__blockOpened")
-    logger.info(f"Found {len(expanded_blocks)} expanded countries.")
+    if not world_region:
+        logger.error("Could not find 'World' region in the menu.")
+        return []
 
-    tournaments = []
-    for block in expanded_blocks:
-        try:
-            country_name = block.find_element(By.CSS_SELECTOR, ".lmc__elementName").text.strip()
-            league_links = block.find_elements(By.CSS_SELECTOR, ".lmc__templateHref")
+    # Only collect from the expanded "World" block
+    try:
+        block = world_region.find_element(By.XPATH, "./ancestor::div[contains(@class, 'lmc__blockOpened')]")
+        country_name = block.find_element(By.CSS_SELECTOR, ".lmc__elementName").text.strip()
+        league_links = block.find_elements(By.CSS_SELECTOR, ".lmc__templateHref")
 
-            for link in league_links:
-                name = link.text.strip()
-                href = link.get_attribute("href")
-                if name and href:
-                    if not href.startswith("http"):
-                        href = base_url + href
-                    full_url = href.rstrip("/") + "/results/"
-                    full_name = f"{country_name} - {name}"
-                    tournaments.append((full_name, full_url))
+        tournaments = []
+        for link in league_links:
+            name = link.text.strip()
+            href = link.get_attribute("href")
+            if name and href:
+                if not href.startswith("http"):
+                    href = base_url + href
+                full_url = href.rstrip("/") + "/results/"
+                full_name = f"{country_name} - {name}"
+                tournaments.append((full_name, full_url))
 
-        except Exception as e:
-            logger.warning(f"Error processing block: {e}")
-            continue
+        logger.info(f"Found {len(tournaments)} tournaments under 'World'.")
+        return tournaments
 
-    logger.info(f"Found {len(tournaments)} tournaments under expanded countries.")
-    return tournaments
+    except Exception as e:
+        logger.error(f"Error extracting tournaments under 'World': {e}")
+        return []
 
 
 # Scrape a single tournament
