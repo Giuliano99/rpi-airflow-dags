@@ -31,20 +31,49 @@ def make_browser():
 # Collect tournament URLs from the left menu
 def get_tournament_links(browser, base_url="https://www.flashscore.com"):
     browser.get(base_url + "/darts/")
-    WebDriverWait(browser, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".leftMenu__href")))
-    links = browser.find_elements(By.CSS_SELECTOR, ".leftMenu__href")
+    wait = WebDriverWait(browser, 10)
+
+    # Wait for left menu to load
+    wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".lmc__element")))
+
+    # Expand all regions
+    regions = browser.find_elements(By.CSS_SELECTOR, ".lmc__element")
+    for region in regions:
+        try:
+            browser.execute_script("arguments[0].scrollIntoView(true);", region)
+            region.click()
+            time.sleep(1)
+        except Exception as e:
+            logger.warning(f"Couldn't expand region: {e}")
+            continue
+
+    # Get only expanded blocks
+    expanded_blocks = browser.find_elements(By.CSS_SELECTOR, ".lmc__block.lmc__blockOpened")
+    logger.info(f"Found {len(expanded_blocks)} expanded countries.")
+
     tournaments = []
+    for block in expanded_blocks:
+        try:
+            country_name = block.find_element(By.CSS_SELECTOR, ".lmc__elementName").text.strip()
+            league_links = block.find_elements(By.CSS_SELECTOR, ".lmc__templateHref")
 
-    for link in links:
-        name = link.text.strip().replace("/", "-")
-        href = link.get_attribute("href")
-        if name and href:
-            if not href.startswith("http"):
-                href = base_url + href
-            tournaments.append((name, href.rstrip("/") + "/results/"))
+            for link in league_links:
+                name = link.text.strip()
+                href = link.get_attribute("href")
+                if name and href:
+                    if not href.startswith("http"):
+                        href = base_url + href
+                    full_url = href.rstrip("/") + "/results/"
+                    full_name = f"{country_name} - {name}"
+                    tournaments.append((full_name, full_url))
 
-    logger.info(f"Found {len(tournaments)} tournaments.")
+        except Exception as e:
+            logger.warning(f"Error processing block: {e}")
+            continue
+
+    logger.info(f"Found {len(tournaments)} tournaments under expanded countries.")
     return tournaments
+
 
 # Scrape a single tournament
 def scrape_tournament(tournament_name, url, browser, output_folder):
