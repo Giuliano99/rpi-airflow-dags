@@ -1,50 +1,19 @@
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from datetime import datetime, timedelta
-from pendulum import timezone
-import os
-import subprocess
+from datetime import datetime
+from scripts.load_results_staging import load_raw_results
+from scripts.validate_results_staging import validate_results
+from scripts.insert_validated_results import insert_results
 
 default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-    'email_on_failure': False,
-    'email_on_retry': False,
+    "owner": "airflow",
+    "start_date": datetime(2025, 6, 20),
+    "catchup": False,
 }
 
-german_tz = timezone("Europe/Berlin")
+with DAG("load_results_to_raw_dag", default_args=default_args, schedule_interval=None) as dag:
+    t1 = PythonOperator(task_id="load_raw_results_csvs", python_callable=load_raw_results)
+    t2 = PythonOperator(task_id="validate_results_staging", python_callable=validate_results)
+    t3 = PythonOperator(task_id="insert_validated_results", python_callable=insert_results)
 
-with DAG(
-    'scrape_results_to_csv_dag',
-    default_args=default_args,
-    description='Daily scrape of completed darts match results',
-    schedule_interval='00 12,23 * * *',  # Twice daily
-    start_date=datetime(2025, 1, 1, tzinfo=german_tz),
-    catchup=False,
-    tags=['darts', 'results'],
-) as dag:
-
-    def run_scrape_darts_results_script():
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        script_path = os.path.join(base_dir, 'scripts', 'scraping', 'scrape_darts_results.py')
-        try:
-            result = subprocess.run(['python3', script_path], check=True, capture_output=True, text=True)
-            print(result.stdout)
-        except subprocess.CalledProcessError as e:
-            print(f"❌ Error executing results script: {e.stderr}")
-            raise
-
-    scrape_results_task = PythonOperator(
-        task_id='scrape_results_to_csv',
-        python_callable=run_scrape_darts_results_script,
-    )
-
-    trigger_load_results_dag = TriggerDagRunOperator(
-        task_id='trigger_load_darts_results',
-        trigger_dag_id='load_darts_results',
-    )
-
-    scrape_results_task >> trigger_load_results_dag
+    t1 >> t2 >> t3

@@ -10,6 +10,10 @@ from selenium.webdriver.chrome.options import Options
 from datetime import datetime
 import os
 import logging
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -46,17 +50,41 @@ except Exception as e:
 # Go back one day if needed
 days_to_go_back = 1
 for day in range(days_to_go_back):
+    # try:
+    #     wait = WebDriverWait(browser, 10)
+    #     previous_day_button = wait.until(
+    #         EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.calendar__navigation--yesterday'))
+    #     )
+    #     previous_day_button.click()
+    #     print(f"Clicked on 'Vorheriger Tag' button for day {day + 1}.")
+    #     time.sleep(2)
+    # except Exception as e:
+    #     print(f"Error clicking 'Vorheriger Tag' button: {e}")
+    #     break
+    
+
+
+# Assuming browser is your webdriver.Chrome instance
+
     try:
-        wait = WebDriverWait(browser, 10)
+        wait = WebDriverWait(browser, 15)
+
+        # Optional: switch to iframe if needed (inspect page)
+        # iframe = browser.find_element(By.CSS_SELECTOR, "iframe#some_iframe")
+        # browser.switch_to.frame(iframe)
+
         previous_day_button = wait.until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.calendar__navigation--yesterday'))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-day-picker-arrow="prev"]'))
         )
         previous_day_button.click()
-        print(f"Clicked on 'Vorheriger Tag' button for day {day + 1}.")
-        time.sleep(2)
+        print("Clicked on 'Vorheriger Tag' button.")
+    except TimeoutException:
+        print("Timeout: 'Vorheriger Tag' button not found or not clickable.")
+    except ElementClickInterceptedException as e:
+        print(f"Click intercepted: {e}")
     except Exception as e:
         print(f"Error clicking 'Vorheriger Tag' button: {e}")
-        break
+
 
 wait = WebDriverWait(browser, 10)
 match_data_list = []
