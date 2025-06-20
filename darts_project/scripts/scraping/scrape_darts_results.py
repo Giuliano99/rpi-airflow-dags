@@ -7,17 +7,13 @@ from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime, timedelta
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from datetime import datetime
 import os
 import logging
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
+from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, StaleElementReferenceException
 
 # Set up logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)  # or DEBUG for verbose logs
+logger.setLevel(logging.INFO)
 
 handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
@@ -26,7 +22,7 @@ logger.addHandler(handler)
 
 # Set up Chrome options
 options = Options()
-options.add_argument('--headless=new')  # Commented out for visible window
+options.add_argument('--headless=new')
 options.add_argument('--disable-gpu')
 options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
@@ -45,38 +41,17 @@ try:
     browser.execute_script("document.getElementById('onetrust-banner-sdk').style.display = 'none';")
     browser.execute_script("document.getElementsByClassName('otPlaceholder')[0].style.display = 'none';")
 except Exception as e:
-    print(f"Cookie banner removal failed: {e}")
+    logger.warning(f"Cookie banner removal failed: {e}")
 
-# Go back one day if needed
+# Go back one day
 days_to_go_back = 1
-for day in range(days_to_go_back):
-    # try:
-    #     wait = WebDriverWait(browser, 10)
-    #     previous_day_button = wait.until(
-    #         EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.calendar__navigation--yesterday'))
-    #     )
-    #     previous_day_button.click()
-    #     print(f"Clicked on 'Vorheriger Tag' button for day {day + 1}.")
-    #     time.sleep(2)
-    # except Exception as e:
-    #     print(f"Error clicking 'Vorheriger Tag' button: {e}")
-    #     break
-    
-
-
-# Assuming browser is your webdriver.Chrome instance
-
+for _ in range(days_to_go_back):
     try:
         wait = WebDriverWait(browser, 15)
-
-        # Optional: switch to iframe if needed (inspect page)
-        # iframe = browser.find_element(By.CSS_SELECTOR, "iframe#some_iframe")
-        # browser.switch_to.frame(iframe)
-
-        previous_day_button = wait.until(
+        prev_button = wait.until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-day-picker-arrow="prev"]'))
         )
-        previous_day_button.click()
+        prev_button.click()
         print("Clicked on 'Vorheriger Tag' button.")
     except TimeoutException:
         print("Timeout: 'Vorheriger Tag' button not found or not clickable.")
@@ -85,38 +60,59 @@ for day in range(days_to_go_back):
     except Exception as e:
         print(f"Error clicking 'Vorheriger Tag' button: {e}")
 
-
 wait = WebDriverWait(browser, 10)
 match_data_list = []
 original_window = browser.current_window_handle
 
+
 try:
     wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.event__match')))
+    # Scroll down to load all matches (Flashscore uses lazy loading)
+    last_height = browser.execute_script("return document.body.scrollHeight")
+    while True:
+        browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(1.5)  # wait for new matches to load
+        new_height = browser.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
+            break
+        last_height = new_height
     matches = browser.find_elements(By.CSS_SELECTOR, '.event__match')
     print(f"Found {len(matches)} matches")
 
     for i in range(len(matches)):
         logger.debug(f"Processing match index {i}")
         try:
+            # Always re-fetch elements to avoid stale references
             matches = browser.find_elements(By.CSS_SELECTOR, '.event__match')
+            time.sleep(0.2)
             match_element = matches[i]
 
-            if 'event__match__header' in match_element.get_attribute('class'):
+            # Retry getting class with fallback in case of stale reference
+            try:
+                time.sleep(0.2)
+                match_class = match_element.get_attribute('class')
+            except StaleElementReferenceException:
+                logger.warning(f"Stale element at index {i}, retrying...")
+                matches = browser.find_elements(By.CSS_SELECTOR, '.event__match')
+                time.sleep(0.2)
+                match_element = matches[i]
+                time.sleep(0.2)
+                match_class = match_element.get_attribute('class')
+
+            if 'event__match__header' in match_class:
                 logger.info(f"Skipping header/non-match element at index {i}")
-                #print(f"Skipping non-match element at index {i}")
                 continue
 
+            time.sleep(0.2)
             match_id = match_element.get_attribute("id")
             if not match_id:
-                logger.info(f"Skipping header/non-match element at index {i}")
-                #print(f"No match ID found for index {i}")
+                logger.info(f"No match ID found for index {i}")
                 continue
-            match_id_cleaned = match_id[4:].lstrip("_")
 
-#            match_url = f"https://www.flashscore.com/match/darts/{match_id[4:]}/#/match-summary/match-summary"
+            match_id_cleaned = match_id[4:].lstrip("_")
             match_url = f"https://www.flashscore.com/match/darts/{match_id_cleaned}/#/match-summary/match-summary"
 
-            # Open a new tab
+            # Open new tab and switch
             browser.execute_script("window.open('');")
             browser.switch_to.window(browser.window_handles[-1])
             browser.get(match_url)
@@ -127,37 +123,37 @@ try:
             match_info = {}
 
             try:
+                time.sleep(0.2)
                 dt_text = browser.find_element(By.CSS_SELECTOR, '.duelParticipant__startTime div').text
                 dt_obj = datetime.strptime(dt_text, "%d.%m.%Y %H:%M")
                 match_info['MatchDateTime'] = dt_obj
                 match_info['Date'] = dt_obj.date()
                 match_info['Time'] = dt_obj.time()
-            except Exception as e:
+            except Exception:
                 logger.warning("Error extracting date/time", exc_info=True)
-                #print(f"Error extracting date/time: {e}")
 
             try:
+                time.sleep(0.2)
                 player_1 = browser.find_element(By.CSS_SELECTOR, '.duelParticipant__home .participant__participantName').text
                 player_2 = browser.find_element(By.CSS_SELECTOR, '.duelParticipant__away .participant__participantName').text
                 match_info['Player 1'] = player_1
                 match_info['Player 2'] = player_2
-            except Exception as e:
+            except Exception:
                 logger.warning("Error extracting players", exc_info=True)
-                #print(f"Error extracting players: {e}")
 
             try:
+                time.sleep(0.2)
                 score_player_1 = browser.find_element(By.CSS_SELECTOR, '.detailScore__wrapper span:nth-child(1)').text
                 score_player_2 = browser.find_element(By.CSS_SELECTOR, '.detailScore__wrapper span:nth-child(3)').text
                 winner = browser.find_element(By.CSS_SELECTOR, '.duelParticipant--winner .participant__participantName').text
                 match_info['Player 1 Score'] = score_player_1
                 match_info['Player 2 Score'] = score_player_2
                 match_info['Winner'] = winner
-            except Exception as e:
-                #print(f"Error extracting result: {e}")
+            except Exception:
                 logger.error("Error extracting result", exc_info=True)
 
-
             try:
+                time.sleep(0.2)
                 statistic_rows = browser.find_elements(By.CSS_SELECTOR, '.wcl-row_OFViZ')
                 average_player_1 = None
                 average_player_2 = None
@@ -169,38 +165,31 @@ try:
                         break
                 match_info['Average Player 1'] = average_player_1
                 match_info['Average Player 2'] = average_player_2
-            except Exception as e:
+            except Exception:
                 logger.warning("Error extracting averages", exc_info=True)
-                #print(f"Error extracting averages: {e}")
 
             match_data_list.append(match_info)
 
-            # Close the current tab
+            # Close tab and return
             browser.close()
-            # Switch back to the original window
             browser.switch_to.window(original_window)
-
             time.sleep(1)
 
-        except Exception as e:
+        except Exception:
             logger.error(f"Error processing match at index {i}", exc_info=True)
-            #print(f"Error processing match at index {i}: {e}")
             browser.switch_to.window(original_window)
             continue
 
-except Exception as e:
+except Exception:
     logger.critical("Top-level error occurred", exc_info=True)
-    #print(f"Top-level error: {e}")
 finally:
     browser.quit()
 
-# Save results
+# Save to CSV
 df = pd.DataFrame(match_data_list)
 
 if df.empty:
-    #print("⚠️ No matches found. CSV file will not be created.")
     logger.warning("No matches found. CSV file will not be created.")
-
 else:
     current_date = (datetime.now() - timedelta(days=days_to_go_back)).strftime('%Y-%m-%d')
     output_folder = os.path.expanduser("~/airflow/darts_results")
@@ -208,5 +197,4 @@ else:
     csv_filename = os.path.join(output_folder, f"match_data_airflow_{current_date}.csv")
     df.to_csv(csv_filename, index=False)
     logger.info(f"Data saved to {csv_filename}")
-
     print(df)
