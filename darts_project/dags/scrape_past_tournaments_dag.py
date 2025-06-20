@@ -17,7 +17,7 @@ with DAG(
 
     run_scraper = BashOperator(
         task_id="run_scraper_script",
-        bash_command="python3 ~/airflow/dags/darts_project/scrape_past_tournaments.py"
+        bash_command="python3 ~/airflow/dags/darts_project/scripts/scraping/scrape_past_tournaments.py"
     )
 
     run_scraper
