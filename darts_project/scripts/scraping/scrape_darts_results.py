@@ -99,9 +99,11 @@ try:
             match_info = {}
 
             try:
-                match_date_time = browser.find_element(By.CSS_SELECTOR, '.duelParticipant__startTime div').text
-                match_date = datetime.strptime(match_date_time.split(' ')[0], "%d.%m.%Y").date()
-                match_info['Date'] = match_date
+                dt_text = browser.find_element(By.CSS_SELECTOR, '.duelParticipant__startTime div').text
+                dt_obj = datetime.strptime(dt_text, "%d.%m.%Y %H:%M")
+                match_info['MatchDateTime'] = dt_obj
+                match_info['Date'] = dt_obj.date()
+                match_info['Time'] = dt_obj.time()
             except Exception as e:
                 logger.warning("Error extracting date/time", exc_info=True)
                 #print(f"Error extracting date/time: {e}")
