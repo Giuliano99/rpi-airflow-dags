@@ -1,12 +1,8 @@
 import psycopg2
-from scripts.db.config import DB_CONFIG
+from scripts.config_db import DB_CONFIG
 import logging
 
-import sys
-import os
 
-# Import path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 logger = logging.getLogger(__name__)
 
