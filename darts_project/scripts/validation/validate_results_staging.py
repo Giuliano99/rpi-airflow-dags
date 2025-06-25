@@ -1,7 +1,7 @@
 import pandas as pd
 import psycopg2
 import logging
-from great_expectations.data_context import DataContext
+from great_expectations.data_context.data_context import DataContext
 from great_expectations.exceptions import GreatExpectationsError
 
 DB_CONFIG = {
