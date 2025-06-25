@@ -1,51 +1,46 @@
-# scripts/validation/init_ge.py
-
 import os
 import yaml
-from great_expectations.data_context import FileDataContext
-from great_expectations.core import ExpectationSuite
 
 def init_ge():
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    ge_root = os.path.join(project_root, "great_expectations")
+    ge_root = "/home/pi/airflow/dags/darts_project/great_expectations"
+    os.makedirs(ge_root, exist_ok=True)
 
-    os.makedirs(os.path.join(ge_root, "expectations"), exist_ok=True)
-    os.makedirs(os.path.join(ge_root, "checkpoints"), exist_ok=True)
-
-    # Minimal config
     ge_config = {
         "config_version": 3,
         "datasources": {},
         "stores": {
-            "expectations_store": {"class_name": "ExpectationsStore", "store_backend": {"class_name": "FilesystemStoreBackend", "base_directory": "expectations/"}},
-            "evaluation_parameter_store": {"class_name": "EvaluationParameterStore"},
-            "validations_store": {"class_name": "ValidationsStore", "store_backend": {"class_name": "FilesystemStoreBackend", "base_directory": "validations/"}},
+            "expectations_store": {
+                "class_name": "ExpectationsStore",
+                "store_backend": {
+                    "class_name": "FilesystemStoreBackend",
+                    "base_directory": "expectations/"
+                }
+            },
+            "validations_store": {
+                "class_name": "ValidationsStore",
+                "store_backend": {
+                    "class_name": "FilesystemStoreBackend",
+                    "base_directory": "validations/"
+                }
+            },
+            "evaluation_parameter_store": {
+                "class_name": "EvaluationParameterStore"
+            }
         },
         "expectations_store_name": "expectations_store",
         "validations_store_name": "validations_store",
         "evaluation_parameter_store_name": "evaluation_parameter_store",
         "data_docs_sites": {},
-        "anonymous_usage_statistics": {"enabled": False},
+        "anonymous_usage_statistics": {
+            "enabled": False
+        }
     }
 
-    # Write config file
-    # Write config file (overwrite if it exists)
-    with open(os.path.join(ge_root, "great_expectations.yml"), "w") as f:
-        f.write(yaml.dump(ge_config, sort_keys=False))  # Prevents reordering keys
+    config_path = os.path.join(ge_root, "great_expectations.yml")
+    with open(config_path, "w") as f:
+        yaml.dump(ge_config, f, sort_keys=False)
 
-
-    print("Created minimal Great Expectations project structure.")
-
-    # Initialize context
-    context = FileDataContext(ge_root)
-
-    # Create empty suites for both tables
-    for suite in ["darts_results_suite", "upcoming_matches_suite"]:
-        if not context.list_expectation_suites():
-            context.add_expectation_suite(suite)
-            print(f"Created ExpectationSuite: {suite}")
-
-    print("✅ Initialization complete.")
+    print(f"Created valid great_expectations.yml at {config_path}")
 
 if __name__ == "__main__":
     init_ge()
