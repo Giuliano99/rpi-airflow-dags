@@ -50,8 +50,8 @@ with DAG(
 
     # Task: Trigger the load DAG
     trigger_load_results_dag = TriggerDagRunOperator(
-        task_id='trigger_load_darts_results',
-        trigger_dag_id='load_darts_results',
+        task_id='trigger_load_darts_results_to_raw',
+        trigger_dag_id='load_results_to_raw_dag',
     )
 
     scrape_results_task >> trigger_load_results_dag
