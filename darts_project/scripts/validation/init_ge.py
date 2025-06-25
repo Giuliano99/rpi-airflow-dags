@@ -29,8 +29,10 @@ def init_ge():
     }
 
     # Write config file
+    # Write config file (overwrite if it exists)
     with open(os.path.join(ge_root, "great_expectations.yml"), "w") as f:
-        yaml.dump(ge_config, f)
+        f.write(yaml.dump(ge_config, sort_keys=False))  # Prevents reordering keys
+
 
     print("Created minimal Great Expectations project structure.")
 
