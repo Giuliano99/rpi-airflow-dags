@@ -1,9 +1,17 @@
+import sys
+import os
+
+# 👇 Add this to include ../scripts in the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime
-from scripts.load_results_staging import load_raw_results
-from scripts.validate_results_staging import validate_results
-from scripts.insert_validated_results import insert_results
+
+# ✅ Use proper relative imports now that scripts/ is on sys.path
+from scripts.loading.load_results_staging import load_raw_results
+from scripts.validation.validate_results_staging import validate_results
+from scripts.loading.insert_validated_results import insert_results
 
 default_args = {
     "owner": "airflow",
