@@ -1,46 +1,21 @@
-import os
-import yaml
+from great_expectations import get_context
 
-def init_ge():
-    ge_root = "/home/pi/airflow/dags/darts_project/great_expectations"
-    os.makedirs(ge_root, exist_ok=True)
+def init_darts_results_suite():
+    GE_ROOT_DIR = "/home/pi/airflow/dags/darts_project/great_expectations"
+    suite_name = "darts_results_suite"
 
-    ge_config = {
-        "config_version": 3,
-        "datasources": {},
-        "stores": {
-            "expectations_store": {
-                "class_name": "ExpectationsStore",
-                "store_backend": {
-                    "class_name": "FilesystemStoreBackend",
-                    "base_directory": "expectations/"
-                }
-            },
-            "validations_store": {
-                "class_name": "ValidationsStore",
-                "store_backend": {
-                    "class_name": "FilesystemStoreBackend",
-                    "base_directory": "validations/"
-                }
-            },
-            "evaluation_parameter_store": {
-                "class_name": "EvaluationParameterStore"
-            }
-        },
-        "expectations_store_name": "expectations_store",
-        "validations_store_name": "validations_store",
-        "evaluation_parameter_store_name": "evaluation_parameter_store",
-        "data_docs_sites": {},
-        "anonymous_usage_statistics": {
-            "enabled": False
-        }
-    }
+    context = get_context(project_root_dir=GE_ROOT_DIR)
 
-    config_path = os.path.join(ge_root, "great_expectations.yml")
-    with open(config_path, "w") as f:
-        yaml.dump(ge_config, f, sort_keys=False)
+    # Check if suite exists
+    existing_suites = [suite.name for suite in context.suites.list_suites()]
+    if suite_name in existing_suites:
+        print(f"Suite '{suite_name}' already exists.")
+        return
 
-    print(f"Created valid great_expectations.yml at {config_path}")
+    # Create new suite
+    suite = context.suites.add(suite_name)
+    context.suites.save(suite)
+    print(f"✅ Created new expectation suite '{suite_name}'")
 
 if __name__ == "__main__":
-    init_ge()
+    init_darts_results_suite()
