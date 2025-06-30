@@ -1,8 +1,7 @@
 import pandas as pd
 import psycopg2
 import logging
-from great_expectations.data_context import DataContext
-
+from great_expectations import get_context
 from great_expectations.exceptions import GreatExpectationsError
 
 DB_CONFIG = {
@@ -26,7 +25,7 @@ def validate_results():
     conn.close()
 
     # Load GE context explicitly from your initialized project directory
-    context = DataContext(GE_ROOT_DIR)
+    context = get_context(project_root_dir=GE_ROOT_DIR)
     suite_name = "darts_results_suite"
 
     try:
