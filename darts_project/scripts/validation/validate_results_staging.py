@@ -27,11 +27,11 @@ def validate_results():
     suite_name = "darts_results_suite"
 
     try:
-        suite = context.get_expectation_suite(suite_name)
+        suite = context.suites.get(suite_name)
         logger.info(f"Using existing suite '{suite_name}'")
-    except Exception as e:
+    except Exception:
         logger.info(f"Suite '{suite_name}' not found. Creating it.")
-        suite = context.add_expectation_suite(suite_name)
+        suite = context.suites.add(suite_name)
 
         # Create validator
         validator = context.sources.pandas_default.read_dataframe(df)
