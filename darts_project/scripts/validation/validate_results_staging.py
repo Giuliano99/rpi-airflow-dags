@@ -7,7 +7,7 @@ import psycopg2
 import logging
 
 DB_CONFIG = {
-    "host": "172.17.0.2",
+    "host": "100.70.108.39",
     "port": "5432",
     "database": "darts_project",
     "user": "postgres",

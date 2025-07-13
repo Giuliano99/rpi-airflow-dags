@@ -3,7 +3,7 @@ import psycopg2
 from great_expectations.data_context import get_context
 
 DB_CONFIG = {
-    "host": "172.17.0.2",
+    "host": "100.70.108.39",
     "port": "5432",
     "database": "darts_project",
     "user": "postgres",
