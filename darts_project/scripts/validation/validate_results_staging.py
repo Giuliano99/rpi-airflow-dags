@@ -1,4 +1,4 @@
-from great_expectations import get_context
+from great_expectations.data_context import FileDataContext
 from great_expectations.core import ExpectationSuite
 import logging
 
@@ -6,7 +6,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def create_suite():
-    context = get_context()  # assumes GE config is in /app/great_expectations/gx
+    context = FileDataContext(context_root_dir="/app/great_expectations")
     suite_name = "darts_results_suite"
 
     try:
