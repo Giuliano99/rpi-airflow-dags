@@ -30,7 +30,8 @@ def validate_results():
     suite_name = "darts_results_suite"
 
     # Check if suite exists using v3 API
-    existing_suites = context.suites.list_suites()
+    existing_suites = context.list_expectation_suites()
+    
     if suite_name not in existing_suites:
         logger.info(f"Suite '{suite_name}' not found. Creating it.")
         context.suites.add(ExpectationSuite(name=suite_name))
