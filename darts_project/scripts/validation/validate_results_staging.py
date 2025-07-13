@@ -13,40 +13,66 @@ DB_CONFIG = {
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def validate_results():
-    logger.info("Starting validation of dart_matches_staging...")
+def validate_and_insert_clean_results():
+    logger.info("Starting validation and clean insertion from staging...")
+
+    mandatory_columns = ["matchdate", "player1", "player2", "winner"]
 
     try:
         with psycopg2.connect(**DB_CONFIG) as conn:
             df = pd.read_sql("SELECT * FROM dart_matches_staging", conn)
+            logger.info(f"Loaded {len(df)} rows from staging.")
 
-        logger.info(f"Loaded {len(df)} rows from dart_matches_staging.")
+            # Drop rows with missing values in mandatory columns
+            initial_row_count = len(df)
+            df_clean = df.dropna(subset=mandatory_columns)
+            cleaned_row_count = len(df_clean)
+            skipped_rows = initial_row_count - cleaned_row_count
 
-        expected_columns = ["matchdate", "player1", "player2", "winner"]
-        missing_columns = [col for col in expected_columns if col not in df.columns]
+            logger.info(f"Rows after dropping incomplete entries: {cleaned_row_count} (skipped {skipped_rows} rows)")
 
-        if missing_columns:
-            logger.error(f"Missing expected columns: {missing_columns}")
-            raise Exception(f"Validation failed due to missing columns: {missing_columns}")
+            with conn.cursor() as cursor:
+                # Ensure clean table exists
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS dart_matches_clean (
+                    id SERIAL PRIMARY KEY,
+                    matchdate DATE,
+                    player1 VARCHAR(100),
+                    player2 VARCHAR(100),
+                    player1score INT,
+                    player2score INT,
+                    winner VARCHAR(100)
+                );
+                """)
+                conn.commit()
 
-        failed = False
+                # Optionally clear existing clean table before insert
+                # cursor.execute("TRUNCATE dart_matches_clean;")
+                # conn.commit()
 
-        for col in expected_columns:
-            missing_count = df[col].isna().sum()
-            if missing_count > 0:
-                logger.error(f"Validation failed for column '{col}': {missing_count} missing values")
-                failed = True
-            else:
-                logger.info(f"Column '{col}' passed validation. No missing values.")
+                insert_count = 0
 
-        if failed:
-            raise Exception("Validation failed. See logs for details.")
-        else:
-            logger.info("✅ All validations passed successfully.")
+                for _, row in df_clean.iterrows():
+                    cursor.execute("""
+                        INSERT INTO dart_matches_clean (matchdate, player1, player2, player1score, player2score, winner)
+                        VALUES (%s, %s, %s, %s, %s, %s);
+                    """, (
+                        row['matchdate'],
+                        row['player1'],
+                        row['player2'],
+                        int(row['player1score']) if pd.notna(row['player1score']) else None,
+                        int(row['player2score']) if pd.notna(row['player2score']) else None,
+                        row['winner']
+                    ))
+                    insert_count += 1
+
+                conn.commit()
+
+                logger.info(f"✅ Inserted {insert_count} clean rows into dart_matches_clean table.")
 
     except Exception as e:
-        logger.error(f"Validation script encountered an error: {e}")
+        logger.error(f"Error during validation and insertion: {e}")
         raise
 
 if __name__ == "__main__":
-    validate_results()
+    validate_and_insert_clean_results()
