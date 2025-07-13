@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --upgrade pip
 
 # Install Python packages
-COPY requirements.txt .
+COPY docker/ge/requirements.txt .
 RUN pip install -r requirements.txt
 
 # Set workdir
