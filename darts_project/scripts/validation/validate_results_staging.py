@@ -11,6 +11,8 @@ DB_CONFIG = {
     "password": "5ads15"
 }
 
+GE_ROOT_DIR = "/app/great_expectations/gx" 
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -20,8 +22,8 @@ def validate_results():
     df = pd.read_sql("SELECT * FROM dart_matches_staging", conn)
     conn.close()
 
-    # Init GE context
-    context = get_context()
+    # Init GE context with project root
+    context = get_context(project_root_dir=GE_ROOT_DIR)
     suite_name = "darts_results_suite"
 
     try:
