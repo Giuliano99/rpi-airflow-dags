@@ -1,6 +1,0 @@
-# docker/ge/requirements.txt
-
-great_expectations
-pandas
-psycopg2-binary
-sqlalchemy
