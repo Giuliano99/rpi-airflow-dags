@@ -1,34 +1,37 @@
 import pandas as pd
 import psycopg2
-from great_expectations.data_context import get_context
+import logging
 
 DB_CONFIG = {
-    "host": "100.70.108.39",
+    "host": "172.17.0.2",
     "port": "5432",
     "database": "darts_project",
     "user": "postgres",
     "password": "5ads15"
 }
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 def validate_upcoming():
     conn = psycopg2.connect(**DB_CONFIG)
     df = pd.read_sql("SELECT * FROM upcoming_matches_staging", conn)
     conn.close()
 
-    context = get_context()
-    suite_name = "upcoming_matches_suite"
+    # Define validation checks
+    checks = {
+        "matchdate": df["matchdate"].notnull().all(),
+        "player1": df["player1"].notnull().all(),
+        "player2": df["player2"].notnull().all()
+    }
 
-    try:
-        context.get_expectation_suite(suite_name)
-    except:
-        context.create_expectation_suite(suite_name)
-        validator = context.get_validator(pandas_df=df, expectation_suite_name=suite_name)
-        validator.expect_column_values_to_not_be_null("matchdate")
-        validator.expect_column_values_to_not_be_null("player1")
-        validator.expect_column_values_to_not_be_null("player2")
-        context.save_expectation_suite(validator.get_expectation_suite())
+    failed_checks = [col for col, passed in checks.items() if not passed]
 
-    validator = context.get_validator(pandas_df=df, expectation_suite_name=suite_name)
-    result = validator.validate()
-    if not result.success:
-        raise Exception("Validation failed")
+    if failed_checks:
+        logger.error(f"Validation failed for columns: {failed_checks}")
+        raise Exception(f"Validation failed for columns: {failed_checks}")
+    else:
+        logger.info("All validations passed successfully.")
+
+if __name__ == "__main__":
+    validate_upcoming()
