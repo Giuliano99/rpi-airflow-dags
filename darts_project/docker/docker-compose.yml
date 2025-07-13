@@ -3,7 +3,7 @@ version: '3.8'
 services:
   great_expectations:
     build:
-      context: ../..
+      context: ../
       dockerfile: docker/ge/Dockerfile
     container_name: ge_container
     volumes:
