@@ -13,7 +13,7 @@ DB_CONFIG = {
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def validate_and_insert_clean_results():
+def validate_results():
     logger.info("Starting validation and clean insertion from staging...")
 
     mandatory_columns = ["matchdate", "player1", "player2", "winner"]
@@ -75,4 +75,4 @@ def validate_and_insert_clean_results():
         raise
 
 if __name__ == "__main__":
-    validate_and_insert_clean_results()
+    validate_results()
