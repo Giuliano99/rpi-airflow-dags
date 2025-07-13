@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   great_expectations:
-    build: ./ge
+    build:
+      context: ../..
+      dockerfile: docker/ge/Dockerfile
     container_name: ge_container
     volumes:
       - ../scripts/validation:/app/validation

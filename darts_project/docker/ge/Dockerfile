@@ -24,7 +24,7 @@ RUN pip install -r requirements.txt
 WORKDIR /app
 
 # Copy scripts to container
-COPY ../../scripts/validation /app/validation
+COPY scripts/validation /app/validation
 
 # Default command (override in docker-compose if needed)
 CMD ["python", "validation/validate_results_staging.py"]
