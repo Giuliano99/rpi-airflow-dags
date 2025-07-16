@@ -16,20 +16,20 @@ logger = logging.getLogger(__name__)
 def validate_results():
     logger.info("Starting validation and clean insertion from staging...")
 
-    mandatory_columns = ["matchdate", "player1", "player2", "winner"]
+    mandatory_columns = ["matchdate", "player1", "player2", "player1score", "player2score", "winner"]
 
     try:
         with psycopg2.connect(**DB_CONFIG) as conn:
             df = pd.read_sql("SELECT * FROM dart_matches_staging", conn)
             logger.info(f"Loaded {len(df)} rows from staging.")
 
-            # Drop rows with missing values in mandatory columns
-            initial_row_count = len(df)
-            df_clean = df.dropna(subset=mandatory_columns)
-            cleaned_row_count = len(df_clean)
-            skipped_rows = initial_row_count - cleaned_row_count
+            # Count rows with any null values
+            rows_with_nulls = df[df[mandatory_columns].isnull().any(axis=1)]
+            logger.info(f"Found {len(rows_with_nulls)} rows with NULL values that will be skipped.")
 
-            logger.info(f"Rows after dropping incomplete entries: {cleaned_row_count} (skipped {skipped_rows} rows)")
+            # Drop rows with missing values in mandatory columns
+            df_clean = df.dropna(subset=mandatory_columns)
+            logger.info(f"Rows after dropping incomplete entries: {len(df_clean)}.")
 
             with conn.cursor() as cursor:
                 # Ensure clean table exists
@@ -46,10 +46,6 @@ def validate_results():
                 """)
                 conn.commit()
 
-                # Optionally clear existing clean table before insert
-                # cursor.execute("TRUNCATE dart_matches_clean;")
-                # conn.commit()
-
                 insert_count = 0
 
                 for _, row in df_clean.iterrows():
@@ -60,8 +56,8 @@ def validate_results():
                         row['matchdate'],
                         row['player1'],
                         row['player2'],
-                        int(row['player1score']) if pd.notna(row['player1score']) else None,
-                        int(row['player2score']) if pd.notna(row['player2score']) else None,
+                        int(row['player1score']),
+                        int(row['player2score']),
                         row['winner']
                     ))
                     insert_count += 1
