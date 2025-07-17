@@ -14,22 +14,22 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def validate_results():
-    logger.info("Starting validation and clean insertion from staging...")
+    logger.info("🚀 Starting validation and clean insertion from staging...")
 
     mandatory_columns = ["matchdate", "player1", "player2", "player1score", "player2score", "winner"]
 
     try:
         with psycopg2.connect(**DB_CONFIG) as conn:
             df = pd.read_sql("SELECT * FROM dart_matches_staging", conn)
-            logger.info(f"Loaded {len(df)} rows from staging.")
+            logger.info(f"📥 Loaded {len(df)} rows from staging.")
 
-            # Count rows with any null values
+            # Identify and log rows with NULL values in mandatory columns
             rows_with_nulls = df[df[mandatory_columns].isnull().any(axis=1)]
-            logger.info(f"Found {len(rows_with_nulls)} rows with NULL values that will be skipped.")
+            logger.info(f"⚠️ Found {len(rows_with_nulls)} rows with NULL values that will be skipped.")
 
-            # Drop rows with missing values in mandatory columns
+            # Drop incomplete rows
             df_clean = df.dropna(subset=mandatory_columns)
-            logger.info(f"Rows after dropping incomplete entries: {len(df_clean)}.")
+            logger.info(f"✅ Rows after dropping incomplete entries: {len(df_clean)}.")
 
             with conn.cursor() as cursor:
                 # Ensure clean table exists
@@ -45,9 +45,15 @@ def validate_results():
                 );
                 """)
                 conn.commit()
+                logger.info("🗃️ Ensured dart_matches_clean table exists.")
 
+                # Truncate clean table before inserting fresh data
+                cursor.execute("TRUNCATE TABLE dart_matches_clean;")
+                conn.commit()
+                logger.info("🧹 Truncated dart_matches_clean table before inserting new validated rows.")
+
+                # Insert validated clean data
                 insert_count = 0
-
                 for _, row in df_clean.iterrows():
                     cursor.execute("""
                         INSERT INTO dart_matches_clean (matchdate, player1, player2, player1score, player2score, winner)
@@ -63,11 +69,10 @@ def validate_results():
                     insert_count += 1
 
                 conn.commit()
-
-                logger.info(f"✅ Inserted {insert_count} clean rows into dart_matches_clean table.")
+                logger.info(f"🏆 Inserted {insert_count} clean rows into dart_matches_clean table successfully.")
 
     except Exception as e:
-        logger.error(f"Error during validation and insertion: {e}")
+        logger.error(f"❌ Error during validation and insertion: {e}", exc_info=True)
         raise
 
 if __name__ == "__main__":
