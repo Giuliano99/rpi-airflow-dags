@@ -23,13 +23,13 @@ def add_new_players():
     cursor.execute(create_elo_rankings_table_query)
     conn.commit()
 
-    # ✅ Insert only the selected players from dart_matches
+    # ✅ Insert only the selected players from raw_darts_results
     insert_new_players_query = """
         INSERT INTO elo_rankings (player, elo)
-        SELECT DISTINCT player1, 1500 FROM dart_matches
+        SELECT DISTINCT player1, 1500 FROM raw_darts_results
         WHERE player1 NOT IN (SELECT player FROM elo_rankings)
         UNION
-        SELECT DISTINCT player2, 1500 FROM dart_matches
+        SELECT DISTINCT player2, 1500 FROM raw_darts_results
         WHERE player2 NOT IN (SELECT player FROM elo_rankings);
     """
     cursor.execute(insert_new_players_query)
@@ -56,7 +56,7 @@ def calculate_elo():
     # ✅ Ensure `elo_match_log` table exists
     create_elo_log_table_query = """
     CREATE TABLE IF NOT EXISTS elo_match_log (
-        match_id INT PRIMARY KEY REFERENCES dart_matches(match_id) ON DELETE CASCADE,
+        match_id INT PRIMARY KEY REFERENCES raw_darts_results(match_id) ON DELETE CASCADE,
         player1 VARCHAR(100),
         player2 VARCHAR(100),
         player1_elo_before INT,
@@ -76,7 +76,7 @@ def calculate_elo():
     # ✅ Get new matches
     cursor.execute("""
     SELECT match_id, player1, player2, player1score, player2score, winner, matchdate
-    FROM dart_matches
+    FROM raw_darts_results
     WHERE match_id IN (
         SELECT match_id FROM new_matches_log
         WHERE processed = FALSE
