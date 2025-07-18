@@ -14,24 +14,60 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def validate_upcoming():
-    conn = psycopg2.connect(**DB_CONFIG)
-    df = pd.read_sql("SELECT * FROM upcoming_matches_staging", conn)
-    conn.close()
+    logger.info("🚀 Starting validation and clean insertion from upcoming_matches_staging...")
 
-    # Define validation checks
-    checks = {
-        "matchdate": df["matchdate"].notnull().all(),
-        "player1": df["player1"].notnull().all(),
-        "player2": df["player2"].notnull().all()
-    }
+    mandatory_columns = ["matchdate", "player1", "player2"]
 
-    failed_checks = [col for col, passed in checks.items() if not passed]
+    try:
+        with psycopg2.connect(**DB_CONFIG) as conn:
+            df = pd.read_sql("SELECT * FROM upcoming_matches_staging", conn)
+            logger.info(f"📥 Loaded {len(df)} rows from upcoming_matches_staging.")
 
-    if failed_checks:
-        logger.error(f"Validation failed for columns: {failed_checks}")
-        raise Exception(f"Validation failed for columns: {failed_checks}")
-    else:
-        logger.info("All validations passed successfully.")
+            # Identify and log rows with NULL values in mandatory columns
+            rows_with_nulls = df[df[mandatory_columns].isnull().any(axis=1)]
+            logger.info(f"⚠️ Found {len(rows_with_nulls)} rows with NULL values that will be skipped.")
+
+            # Drop incomplete rows
+            df_clean = df.dropna(subset=mandatory_columns)
+            logger.info(f"✅ Rows after dropping incomplete entries: {len(df_clean)}.")
+
+            with conn.cursor() as cursor:
+                # Ensure clean upcoming table exists
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS upcoming_matches_clean (
+                    id SERIAL PRIMARY KEY,
+                    matchdate DATE,
+                    player1 VARCHAR(100),
+                    player2 VARCHAR(100)
+                );
+                """)
+                conn.commit()
+                logger.info("🗃️ Ensured upcoming_matches_clean table exists.")
+
+                # Truncate clean table before inserting fresh data
+                cursor.execute("TRUNCATE TABLE upcoming_matches_clean;")
+                conn.commit()
+                logger.info("🧹 Truncated upcoming_matches_clean table before inserting new validated rows.")
+
+                # Insert validated clean data
+                insert_count = 0
+                for _, row in df_clean.iterrows():
+                    cursor.execute("""
+                        INSERT INTO upcoming_matches_clean (matchdate, player1, player2)
+                        VALUES (%s, %s, %s);
+                    """, (
+                        row['matchdate'],
+                        row['player1'],
+                        row['player2']
+                    ))
+                    insert_count += 1
+
+                conn.commit()
+                logger.info(f"🏆 Inserted {insert_count} clean rows into upcoming_matches_clean table successfully.")
+
+    except Exception as e:
+        logger.error(f"❌ Error during validation and insertion: {e}", exc_info=True)
+        raise
 
 if __name__ == "__main__":
     validate_upcoming()
