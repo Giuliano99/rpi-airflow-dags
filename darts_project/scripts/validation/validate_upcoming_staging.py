@@ -55,13 +55,14 @@ def validate_upcoming():
                 for _, row in df_clean.iterrows():
                     cursor.execute("""
                         INSERT INTO upcoming_matches_silver (matchdate, player1, player2, odds)
-                        VALUES (%s, %s, %s);
+                        VALUES (%s, %s, %s, %s);
                     """, (
                         row['matchdate'],
                         row['player1'],
                         row['player2'],
                         row['odds']
                     ))
+
                     insert_count += 1
 
                 conn.commit()
