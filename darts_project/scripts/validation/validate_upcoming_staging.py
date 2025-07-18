@@ -38,7 +38,8 @@ def validate_upcoming():
                     id SERIAL PRIMARY KEY,
                     matchdate DATE,
                     player1 VARCHAR(100),
-                    player2 VARCHAR(100)
+                    player2 VARCHAR(100),
+                    odds JSONB
                 );
                 """)
                 conn.commit()
@@ -53,12 +54,13 @@ def validate_upcoming():
                 insert_count = 0
                 for _, row in df_clean.iterrows():
                     cursor.execute("""
-                        INSERT INTO upcoming_matches_silver (matchdate, player1, player2)
+                        INSERT INTO upcoming_matches_silver (matchdate, player1, player2, odds)
                         VALUES (%s, %s, %s);
                     """, (
                         row['matchdate'],
                         row['player1'],
-                        row['player2']
+                        row['player2'],
+                        row['odds']
                     ))
                     insert_count += 1
 
