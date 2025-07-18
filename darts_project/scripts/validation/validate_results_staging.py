@@ -20,7 +20,7 @@ def validate_results():
 
     try:
         with psycopg2.connect(**DB_CONFIG) as conn:
-            df = pd.read_sql("SELECT * FROM dart_matches_staging", conn)
+            df = pd.read_sql("SELECT * FROM dart_matches_bronze", conn)
             logger.info(f"📥 Loaded {len(df)} rows from staging.")
 
             # Identify and log rows with NULL values in mandatory columns
@@ -34,7 +34,7 @@ def validate_results():
             with conn.cursor() as cursor:
                 # Ensure clean table exists
                 cursor.execute("""
-                CREATE TABLE IF NOT EXISTS dart_matches_clean (
+                CREATE TABLE IF NOT EXISTS dart_matches_silver (
                     id SERIAL PRIMARY KEY,
                     matchdate DATE,
                     player1 VARCHAR(100),
@@ -45,18 +45,18 @@ def validate_results():
                 );
                 """)
                 conn.commit()
-                logger.info("🗃️ Ensured dart_matches_clean table exists.")
+                logger.info("🗃️ Ensured dart_matches_silver table exists.")
 
                 # Truncate clean table before inserting fresh data
-                cursor.execute("TRUNCATE TABLE dart_matches_clean;")
+                cursor.execute("TRUNCATE TABLE dart_matches_silver;")
                 conn.commit()
-                logger.info("🧹 Truncated dart_matches_clean table before inserting new validated rows.")
+                logger.info("🧹 Truncated dart_matches_silver table before inserting new validated rows.")
 
                 # Insert validated clean data
                 insert_count = 0
                 for _, row in df_clean.iterrows():
                     cursor.execute("""
-                        INSERT INTO dart_matches_clean (matchdate, player1, player2, player1score, player2score, winner)
+                        INSERT INTO dart_matches_silver (matchdate, player1, player2, player1score, player2score, winner)
                         VALUES (%s, %s, %s, %s, %s, %s);
                     """, (
                         row['matchdate'],
@@ -69,7 +69,7 @@ def validate_results():
                     insert_count += 1
 
                 conn.commit()
-                logger.info(f"🏆 Inserted {insert_count} clean rows into dart_matches_clean table successfully.")
+                logger.info(f"🏆 Inserted {insert_count} clean rows into dart_matches_silver table successfully.")
 
     except Exception as e:
         logger.error(f"❌ Error during validation and insertion: {e}", exc_info=True)

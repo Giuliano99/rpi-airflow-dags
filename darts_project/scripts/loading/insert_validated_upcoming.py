@@ -12,9 +12,9 @@ def insert_upcoming():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
-    # Create raw_upcoming_matches table with only scraped fields
+    # Create upcoming_matches_gold table with only scraped fields
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS raw_upcoming_matches (
+    CREATE TABLE IF NOT EXISTS upcoming_matches_gold (
         id SERIAL PRIMARY KEY,
         matchdate DATE,
         player1 VARCHAR(100),
@@ -26,9 +26,9 @@ def insert_upcoming():
 
     # Insert validated upcoming matches into raw table
     cursor.execute("""
-    INSERT INTO raw_upcoming_matches (matchdate, player1, player2, odds)
+    INSERT INTO upcoming_matches_gold (matchdate, player1, player2, odds)
     SELECT matchdate, player1, player2, odds
-    FROM upcoming_matches_staging
+    FROM upcoming_matches_silver
     ON CONFLICT (matchdate, player1, player2) DO NOTHING;
     """)
 

@@ -17,14 +17,14 @@ def load_raw_upcoming():
     cursor = conn.cursor()
 
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS upcoming_matches_staging (
+    CREATE TABLE IF NOT EXISTS upcoming_matches_bronze (
         id SERIAL PRIMARY KEY,
         matchdate DATE,
         player1 VARCHAR(100),
         player2 VARCHAR(100),
         odds JSONB
     );
-    TRUNCATE upcoming_matches_staging;
+    TRUNCATE upcoming_matches_bronze;
     """)
     conn.commit()
 
@@ -38,7 +38,7 @@ def load_raw_upcoming():
             for _, row in df.iterrows():
                 odds = {col: row[col] for col in df.columns if col not in ['Date', 'Player 1', 'Player 2'] and row[col] != ''}
                 cursor.execute("""
-                    INSERT INTO upcoming_matches_staging (matchdate, player1, player2, odds)
+                    INSERT INTO upcoming_matches_bronze (matchdate, player1, player2, odds)
                     VALUES (%s, %s, %s, %s);
                 """, (
                     row.get('Date'),

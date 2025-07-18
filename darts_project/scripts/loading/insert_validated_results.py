@@ -12,9 +12,9 @@ def insert_results():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
-    # Ensure raw_darts_results table exists
+    # Ensure dart_matches_gold table exists
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS raw_darts_results (
+    CREATE TABLE IF NOT EXISTS dart_matches_gold (
         match_id SERIAL PRIMARY KEY,
         matchdate DATE,
         player1 VARCHAR(100),
@@ -28,9 +28,9 @@ def insert_results():
 
     # Insert from validated clean table instead of staging
     cursor.execute("""
-    INSERT INTO raw_darts_results (matchdate, player1, player2, player1score, player2score, winner)
+    INSERT INTO dart_matches_gold (matchdate, player1, player2, player1score, player2score, winner)
     SELECT matchdate, player1, player2, player1score, player2score, winner
-    FROM dart_matches_clean
+    FROM dart_matches_silver
     ON CONFLICT (player1, player2, matchdate) DO NOTHING;
     """)
 

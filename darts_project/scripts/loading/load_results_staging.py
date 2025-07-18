@@ -36,7 +36,7 @@ def load_raw_results():
 
         print("[ℹ️] Ensuring staging table exists and is clean...")
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS dart_matches_staging (
+        CREATE TABLE IF NOT EXISTS dart_matches_bronze (
             id SERIAL PRIMARY KEY,
             matchdate DATE,
             player1 VARCHAR(100),
@@ -45,7 +45,7 @@ def load_raw_results():
             player2score INT,
             winner VARCHAR(100)
         );
-        TRUNCATE dart_matches_staging;
+        TRUNCATE dart_matches_bronze;
         """)
         conn.commit()
 
@@ -75,7 +75,7 @@ def load_raw_results():
 
                         # Insert all rows, even incomplete, for raw staging
                         cursor.execute("""
-                            INSERT INTO dart_matches_staging (matchdate, player1, player2, player1score, player2score, winner)
+                            INSERT INTO dart_matches_bronze (matchdate, player1, player2, player1score, player2score, winner)
                             VALUES (%s, %s, %s, %s, %s, %s);
                         """, (
                             match_date, player1, player2, player1_score, player2_score, winner
