@@ -1,5 +1,6 @@
 import pandas as pd
 import psycopg2
+import psycopg2.extras  # <-- ADD THIS IMPORT
 import logging
 
 DB_CONFIG = {
@@ -60,7 +61,7 @@ def validate_upcoming():
                         row['matchdate'],
                         row['player1'],
                         row['player2'],
-                        row['odds']
+                        psycopg2.extras.Json(row['odds'])  # <-- WRAP WITH Json
                     ))
 
                     insert_count += 1
