@@ -11,11 +11,14 @@ DB_CONFIG = {
     "password": "5ads15"
 }
 
+INITIAL_ELO = 1500
+
 def calculate_win_probability(player1_elo, player2_elo):
     try:
         expected_p1 = 1 / (1 + 10 ** ((player2_elo - player1_elo) / 400))
         return expected_p1
-    except:
+    except Exception as e:
+        print(f"[ERROR] calculate_win_probability: {e}")
         return None
 
 def predict_upcoming():
@@ -65,20 +68,17 @@ def predict_upcoming():
             print("[⚠️] No upcoming matches found.")
             return
 
+        # Replace missing Elo values with INITIAL_ELO
+        df['player1_elo'] = df['player1_elo'].fillna(INITIAL_ELO)
+        df['player2_elo'] = df['player2_elo'].fillna(INITIAL_ELO)
+
         # Calculate probabilities
         df['predicted_p1_prob'] = df.apply(lambda x: calculate_win_probability(x['player1_elo'], x['player2_elo']), axis=1)
         df['predicted_p2_prob'] = 1 - df['predicted_p1_prob']
 
         records = []
         for idx, row in df.iterrows():
-            odds_field = row['odds']
-            if isinstance(odds_field, str):
-                odds_json = json.loads(odds_field)
-            elif isinstance(odds_field, dict):
-                odds_json = odds_field
-            else:
-                odds_json = {}
-
+            odds_json = json.loads(row['odds']) if row['odds'] else {}
 
             # Extract all P1 and P2 odds from odds_json
             p1_odds = [float(v) for k, v in odds_json.items() if '_P1' in k]
@@ -124,8 +124,8 @@ def predict_upcoming():
             matchdate DATE,
             player1 VARCHAR(100),
             player2 VARCHAR(100),
-            player1_elo INT,
-            player2_elo INT,
+            player1_elo FLOAT,
+            player2_elo FLOAT,
             player1_match_count INT,
             player2_match_count INT,
             predicted_p1_prob FLOAT,
