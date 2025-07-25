@@ -41,10 +41,9 @@ def backtest_predictions(value_threshold=0.05, stake=10):
     total_bets = 0
 
     for _, row in df.iterrows():
-        bet_p1 = row['value_p1'] and row['value_p1'] >= value_threshold
-        bet_p2 = row['value_p2'] and row['value_p2'] >= value_threshold
+        bet_p1 = bool(row['value_p1']) and row['value_p1'] >= value_threshold if pd.notnull(row['value_p1']) else False
+        bet_p2 = bool(row['value_p2']) and row['value_p2'] >= value_threshold if pd.notnull(row['value_p2']) else False
 
-        # Determine bets placed and outcomes
         profit = 0
         bets = 0
 
@@ -68,17 +67,17 @@ def backtest_predictions(value_threshold=0.05, stake=10):
         total_profit += profit
 
         results.append({
-            "prediction_id": row['prediction_id'],
+            "prediction_id": int(row['prediction_id']),
             "matchdate": row['matchdate'],
             "player1": row['player1'],
             "player2": row['player2'],
             "actual_winner": row['actual_winner'],
-            "bet_p1": bet_p1,
-            "bet_p2": bet_p2,
-            "profit": profit
+            "bet_p1": bool(bet_p1),
+            "bet_p2": bool(bet_p2),
+            "profit": float(profit)
         })
 
-    # Insert results to darts_backtest_log table
+    # Create results table if not exists
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS darts_backtest_log (
         id SERIAL PRIMARY KEY,
