@@ -78,7 +78,7 @@ def predict_upcoming():
 
         records = []
         for idx, row in df.iterrows():
-            odds_json = json.loads(row['odds']) if row['odds'] else {}
+            odds_json = row['odds'] if isinstance(row['odds'], dict) else json.loads(row['odds']) if row['odds'] else {}
 
             # Extract all P1 and P2 odds from odds_json
             p1_odds = [float(v) for k, v in odds_json.items() if '_P1' in k]
