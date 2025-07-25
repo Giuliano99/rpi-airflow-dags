@@ -19,7 +19,7 @@ default_args = {
 with DAG(
     "backtest_predictions_dag",
     default_args=default_args,
-    schedule_interval=None,  # ➡️ Run manually or schedule if desired
+    schedule_interval="0 12 * * *",
     description="Run backtesting on past darts predictions to log performance and ROI",
 ) as dag:
     backtest_task = PythonOperator(

@@ -20,7 +20,8 @@ default_args = {
 with DAG(
     "predict_upcoming_matches_dag",
     default_args=default_args,
-    schedule_interval=None,
+    schedule_interval="0 12 * * *", 
+    description="Predict upcoming darts matches daily at noon",
 ) as dag:
 
     t1 = PythonOperator(
