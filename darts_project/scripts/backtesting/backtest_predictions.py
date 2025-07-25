@@ -2,7 +2,13 @@ import psycopg2
 import pandas as pd
 from datetime import datetime
 
-DB_CONFIG = {...}
+DB_CONFIG = {
+    "host": "172.17.0.2",
+    "port": "5432",
+    "database": "darts_project",
+    "user": "postgres",
+    "password": "5ads15"
+}
 
 def backtest_predictions(value_threshold=0.05, stake=10):
     conn = psycopg2.connect(**DB_CONFIG)
