@@ -15,6 +15,7 @@ def backtest_predictions():
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
+    # Fetch predictions and actual results
     query = """
     SELECT
         p.id AS prediction_id,
@@ -53,30 +54,30 @@ def backtest_predictions():
         elif actual == row['player2'] and pd.notnull(row['predicted_p2_prob']):
             log_loss = -math.log(row['predicted_p2_prob']) if row['predicted_p2_prob'] > 0 else None
 
-        results.append({
-            "prediction_id": int(row['prediction_id']),
-            "matchdate": row['matchdate'],
-            "player1": row['player1'],
-            "player2": row['player2'],
-            "actual_winner": actual,
-            "player1_elo": float(row['player1_elo']) if pd.notnull(row['player1_elo']) else None,
-            "player2_elo": float(row['player2_elo']) if pd.notnull(row['player2_elo']) else None,
-            "player1_match_count": int(row['player1_match_count']),
-            "player2_match_count": int(row['player2_match_count']),
-            "predicted_p1_prob": float(row['predicted_p1_prob']) if pd.notnull(row['predicted_p1_prob']) else None,
-            "predicted_p2_prob": float(row['predicted_p2_prob']) if pd.notnull(row['predicted_p2_prob']) else None,
-            "best_p1_odds": float(row['best_p1_odds']) if pd.notnull(row['best_p1_odds']) else None,
-            "best_p2_odds": float(row['best_p2_odds']) if pd.notnull(row['best_p2_odds']) else None,
-            "best_p1_implied_prob": best_p1_implied,
-            "best_p2_implied_prob": best_p2_implied,
-            "log_loss": float(log_loss) if log_loss is not None else None
-        })
+        results.append((
+            int(row['prediction_id']),
+            row['matchdate'],
+            row['player1'],
+            row['player2'],
+            actual,
+            float(row['player1_elo']) if pd.notnull(row['player1_elo']) else None,
+            float(row['player2_elo']) if pd.notnull(row['player2_elo']) else None,
+            int(row['player1_match_count']),
+            int(row['player2_match_count']),
+            float(row['predicted_p1_prob']) if pd.notnull(row['predicted_p1_prob']) else None,
+            float(row['predicted_p2_prob']) if pd.notnull(row['predicted_p2_prob']) else None,
+            float(row['best_p1_odds']) if pd.notnull(row['best_p1_odds']) else None,
+            float(row['best_p2_odds']) if pd.notnull(row['best_p2_odds']) else None,
+            best_p1_implied,
+            best_p2_implied,
+            float(log_loss) if log_loss is not None else None
+        ))
 
-    # Create general backtest table without profit
+    # Create table with UNIQUE constraint on prediction_id
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS darts_backtest_general_log (
         id SERIAL PRIMARY KEY,
-        prediction_id INT,
+        prediction_id INT UNIQUE,
         matchdate DATE,
         player1 VARCHAR(100),
         player2 VARCHAR(100),
@@ -97,6 +98,7 @@ def backtest_predictions():
     """)
     conn.commit()
 
+    # Insert with ON CONFLICT DO NOTHING to prevent duplicates
     insert_query = """
     INSERT INTO darts_backtest_general_log (
         prediction_id, matchdate, player1, player2,
@@ -106,23 +108,14 @@ def backtest_predictions():
         best_p1_odds, best_p2_odds,
         best_p1_implied_prob, best_p2_implied_prob,
         log_loss
-    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);
+    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    ON CONFLICT (prediction_id) DO NOTHING;
     """
 
-    cursor.executemany(insert_query, [
-        (
-            r["prediction_id"], r["matchdate"], r["player1"], r["player2"],
-            r["actual_winner"], r["player1_elo"], r["player2_elo"],
-            r["player1_match_count"], r["player2_match_count"],
-            r["predicted_p1_prob"], r["predicted_p2_prob"],
-            r["best_p1_odds"], r["best_p2_odds"],
-            r["best_p1_implied_prob"], r["best_p2_implied_prob"],
-            r["log_loss"]
-        ) for r in results
-    ])
+    cursor.executemany(insert_query, results)
     conn.commit()
 
-    print(f"[✅] General backtest data stored: {len(results)} matches")
+    print(f"[✅] General backtest data stored: {len(results)} matches attempted (duplicates skipped).")
 
     cursor.close()
     conn.close()
