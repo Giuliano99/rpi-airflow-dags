@@ -9,27 +9,27 @@ def fetch_skinport_prices(**kwargs):
 
     url = "https://api.skinport.com/v1/items"
     headers = {
-        "Accept": "application/json",  # ✅ required
-        "User-Agent": "Mozilla/5.0 (compatible; ArbitrageBot/1.0; +https://yourdomain.com)"
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (compatible; ArbitrageBot/1.0)"
     }
     params = {
-        "app_id": 730,  # CS:GO / CS2
+        "app_id": 730,
         "currency": "EUR"
     }
 
     try:
+        logger.info(f"Requesting: {url} with params={params} and headers={headers}")
         response = requests.get(url, headers=headers, params=params)
+        logger.info(f"Response status: {response.status_code}")
+        logger.info(f"Response headers: {response.headers}")
+
         if response.status_code != 200:
             logger.error(f"❌ Error fetching data: {response.status_code} → {response.text}")
             return None
 
         data = response.json()
         logger.info(f"✅ Successfully fetched {len(data)} items from Skinport")
-
-        # Optional: log first few items
         logger.info(f"Sample: {json.dumps(data[:3], indent=2, ensure_ascii=False)}")
-
-        # Return for downstream tasks if needed
         return data
 
     except Exception as e:
