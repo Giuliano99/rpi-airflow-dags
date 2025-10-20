@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.log
+
+# Virtual environment
+venv/
+.env/
+.envrc
+*.env
+
+# VS Code settings (optional, if you use VS Code)
+.vscode/
+
+# macOS system files (optional, safe to add)
+.DS_Store
+
+# Jupyter Notebook checkpoints (optional, if you ever use Jupyter)
+.ipynb_checkpoints/
+
+# Airflow files
+airflow.db
+logs/
+unittest.cfg
+
+# Other temp files
+*.sqlite3
+*.db
+*.bak
+*.swp
