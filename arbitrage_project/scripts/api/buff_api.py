@@ -7,6 +7,11 @@ def fetch_buff_prices():
     r = requests.get(url, headers=headers)
     data = r.json()["data"]["items"]
 
+    # ✅ Debug print to see what the API returned
+    print("Received items:", data)
+
+
+
     conn = get_connection()
     cur = conn.cursor()
     for d in data:
