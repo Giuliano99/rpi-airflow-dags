@@ -6,12 +6,16 @@ from arbitrage_project.scripts.db.config_db import get_connection
 def fetch_skinport_prices():
     base_url = "https://api.skinport.com/v1/items"
     params = {"app_id": 730, "currency": "EUR", "tradable": "true"}
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (compatible; ArbitrageBot/1.0)"
+    }
 
     print("Fetching Skinport market data...")
     all_items = []
 
     try:
-        r = requests.get(base_url, params=params, timeout=15)
+        r = requests.get(base_url, params=params, headers=headers, timeout=15)
         if r.status_code != 200:
             print(f"❌ Error fetching data: {r.status_code} → {r.text}")
             return
@@ -42,7 +46,7 @@ def fetch_skinport_prices():
         INSERT INTO markets (name, fee_percent)
         VALUES (%s, %s)
         ON CONFLICT (name) DO NOTHING
-    """, ("Skinport", 0.12))  # Skinport’s sales fee ≈ 12%
+    """, ("Skinport", 0.12))
     conn.commit()
 
     inserted_count = 0
@@ -56,7 +60,6 @@ def fetch_skinport_prices():
         suggested_price = item.get("suggested_price") or 0
         volume = item.get("volume") or 0
 
-        # Some API values are strings
         try:
             min_price = float(min_price)
             suggested_price = float(suggested_price)
@@ -64,14 +67,12 @@ def fetch_skinport_prices():
         except Exception:
             continue
 
-        # Insert or link to items table
         cur.execute("""
             INSERT INTO items (name)
             VALUES (%s)
             ON CONFLICT (name) DO NOTHING
         """, (item_name,))
 
-        # Insert price entry
         cur.execute("""
             INSERT INTO prices (item_id, market_id, price, volume)
             VALUES (
