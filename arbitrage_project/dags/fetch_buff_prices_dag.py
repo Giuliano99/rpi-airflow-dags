@@ -1,3 +1,6 @@
+import sys, os
+sys.path.append(os.path.expanduser("~/airflow/dags"))
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime
