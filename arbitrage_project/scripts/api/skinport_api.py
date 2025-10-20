@@ -10,6 +10,7 @@ def fetch_skinport_prices(**kwargs):
     url = "https://api.skinport.com/v1/items"
     headers = {
         "Accept": "application/json",
+        "Accept-Encoding": "identity",  # disable gzip/br
         "User-Agent": "Mozilla/5.0 (compatible; ArbitrageBot/1.0)"
     }
     params = {
@@ -19,7 +20,7 @@ def fetch_skinport_prices(**kwargs):
 
     try:
         logger.info(f"Requesting: {url} with params={params} and headers={headers}")
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, headers=headers, params=params, timeout=15)
         logger.info(f"Response status: {response.status_code}")
         logger.info(f"Response headers: {response.headers}")
 
