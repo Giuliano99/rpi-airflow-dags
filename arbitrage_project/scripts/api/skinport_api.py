@@ -1,95 +1,37 @@
 import requests
-import time
-import random
-from arbitrage_project.scripts.db.config_db import get_connection
+import json
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-def fetch_skinport_prices():
-    base_url = "https://api.skinport.com/v1/items"
-    params = {"app_id": 730, "currency": "EUR", "tradable": "true"}
+logger = LoggingMixin().log
+
+def fetch_skinport_prices(**kwargs):
+    logger.info("Fetching Skinport market data...")
+
+    url = "https://api.skinport.com/v1/items"
     headers = {
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0 (compatible; ArbitrageBot/1.0)"
+        "Accept": "application/json",  # ✅ required
+        "User-Agent": "Mozilla/5.0 (compatible; ArbitrageBot/1.0; +https://yourdomain.com)"
+    }
+    params = {
+        "app_id": 730,  # CS:GO / CS2
+        "currency": "EUR"
     }
 
-    print("Fetching Skinport market data...")
-    all_items = []
-
     try:
-        r = requests.get(base_url, params=params, headers=headers, timeout=15)
-        if r.status_code != 200:
-            print(f"❌ Error fetching data: {r.status_code} → {r.text}")
-            return
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code != 200:
+            logger.error(f"❌ Error fetching data: {response.status_code} → {response.text}")
+            return None
 
-        data = r.json()
-        if not isinstance(data, list):
-            print("❌ Unexpected API format:", data)
-            return
+        data = response.json()
+        logger.info(f"✅ Successfully fetched {len(data)} items from Skinport")
 
-        print(f"Fetched {len(data)} Skinport items.")
-        all_items.extend(data)
+        # Optional: log first few items
+        logger.info(f"Sample: {json.dumps(data[:3], indent=2, ensure_ascii=False)}")
+
+        # Return for downstream tasks if needed
+        return data
 
     except Exception as e:
-        print(f"❌ Exception fetching Skinport data: {e}")
-        return
-
-    print(f"Total collected items: {len(all_items)}")
-    if not all_items:
-        print("⚠️ No data collected, exiting.")
-        return
-
-    # --- Write to database ---
-    conn = get_connection()
-    cur = conn.cursor()
-
-    # Register Skinport market if not existing
-    cur.execute("""
-        INSERT INTO markets (name, fee_percent)
-        VALUES (%s, %s)
-        ON CONFLICT (name) DO NOTHING
-    """, ("Skinport", 0.12))
-    conn.commit()
-
-    inserted_count = 0
-
-    for item in all_items:
-        item_name = item.get("market_hash_name")
-        if not item_name:
-            continue
-
-        min_price = item.get("min_price") or 0
-        suggested_price = item.get("suggested_price") or 0
-        volume = item.get("volume") or 0
-
-        try:
-            min_price = float(min_price)
-            suggested_price = float(suggested_price)
-            volume = int(volume)
-        except Exception:
-            continue
-
-        cur.execute("""
-            INSERT INTO items (name)
-            VALUES (%s)
-            ON CONFLICT (name) DO NOTHING
-        """, (item_name,))
-
-        cur.execute("""
-            INSERT INTO prices (item_id, market_id, price, volume)
-            VALUES (
-                (SELECT id FROM items WHERE name=%s),
-                (SELECT id FROM markets WHERE name='Skinport'),
-                %s,
-                %s
-            )
-        """, (item_name, min_price, volume))
-
-        inserted_count += 1
-        if inserted_count % 100 == 0:
-            conn.commit()
-            print(f"Inserted {inserted_count} Skinport items so far...")
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    print(f"✅ Done. Inserted {inserted_count} Skinport prices into Postgres.")
+        logger.error(f"⚠️ Exception fetching Skinport data: {str(e)}")
+        return None
