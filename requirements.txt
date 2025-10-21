@@ -1,3 +1,5 @@
 selenium>=4.0.0
 pandas>=1.0.0
 great_expectations>=0.18.0
+brotli>=1.0.9
+requests>=2.28.0
