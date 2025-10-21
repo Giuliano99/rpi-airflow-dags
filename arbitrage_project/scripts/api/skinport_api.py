@@ -59,8 +59,8 @@ def fetch_skinport_prices():
         if not item_name:
             continue
 
-        sell_price = float(d.get("lowest_price") or 0)
-        volume = int(d.get("volume") or 0)
+        sell_price = float(d.get("min_price") or 0)
+        volume = int(d.get("quantity") or 0)
 
         cur.execute("""
             INSERT INTO items (name)
