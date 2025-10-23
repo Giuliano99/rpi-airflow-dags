@@ -4,63 +4,47 @@ import random
 from arbitrage_project.scripts.db.config_db import get_connection
 
 
-def get_cny_to_eur_rate():
-    """Fetch current exchange rate from CNY to EUR."""
-    try:
-        url = "https://api.exchangerate.host/latest?base=CNY&symbols=EUR"
-        resp = requests.get(url, timeout=10)
-        resp.raise_for_status()
-        rate = resp.json()["rates"]["EUR"]
-        print(f"💱 Aktueller Wechselkurs CNY→EUR: {rate:.4f}")
-        return rate
-    except Exception as e:
-        print(f"⚠️ Fehler beim Abrufen des Wechselkurses: {e}")
-        # Fallback-Wert (ungefährer Durchschnitt)
-        return 0.13
-
-
 def fetch_buff_prices():
     base_url = "https://buff.163.com/api/market/goods"
     headers = {
-        "User-Agent": f"Mozilla/5.0 (ArbBot/{random.randint(100,999)})",
-        "Accept": "application/json",
-        "Referer": "https://buff.163.com/",
+        "User-Agent": f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      f"(KHTML, like Gecko) Chrome/{random.randint(100,120)}.0.{random.randint(1000,9999)}.100 "
+                      f"Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://buff.163.com/market/csgo",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Connection": "keep-alive",
     }
     params = {"game": "csgo", "page_num": 1}
 
-    exchange_rate = get_cny_to_eur_rate()
     all_items = []
-
     print("🚀 Fetching Buff163 market data...")
-    retry_count = 0
-    max_retries = 5
 
     while True:
         try:
-            r = requests.get(base_url, headers=headers, params=params, timeout=15)
+            r = requests.get(base_url, headers=headers, params=params, timeout=10)
 
-            # --- Handle Rate Limits (HTTP 429) ---
+            # --- Handle rate limit and forbidden errors ---
             if r.status_code == 429:
-                wait_time = random.uniform(30, 60) * (retry_count + 1)
+                wait_time = random.uniform(45, 90)
                 print(f"⚠️ Rate limit (429) auf Seite {params['page_num']}. Warten {wait_time:.1f}s...")
                 time.sleep(wait_time)
-                retry_count += 1
-                if retry_count > max_retries:
-                    print("❌ Zu viele 429-Fehler. Abbruch.")
-                    break
                 continue
 
-            # --- Handle Non-OK Responses ---
+            if r.status_code == 403:
+                print("🚫 403 Forbidden – IP temporär geblockt. Task endet frühzeitig.")
+                break
+
             if r.status_code != 200:
                 print(f"❌ HTTP {r.status_code} auf Seite {params['page_num']}")
                 break
 
-            retry_count = 0  # Reset auf Erfolg
             resp_json = r.json()
 
+            # --- Handle malformed responses ---
             if "data" not in resp_json:
-                print(f"⚠️ Keine 'data'-Struktur auf Seite {params['page_num']}: {resp_json.get('msg', 'no data')}")
-                time.sleep(random.uniform(5, 10))
+                print(f"⚠️ Unerwartete Antwort auf Seite {params['page_num']}: {resp_json.get('msg', 'no data')}")
+                time.sleep(random.uniform(5, 8))
                 continue
 
             data = resp_json["data"]
@@ -71,16 +55,20 @@ def fetch_buff_prices():
             print(f"✅ Seite {current_page}/{total_pages} → {len(items)} Items")
             all_items.extend(items)
 
+            # --- Safety: Limit pages to 100 per run ---
+            if current_page >= 100:
+                print("⏹️ Seitenlimit (100) erreicht – Stoppe frühzeitig für POC.")
+                break
+
             if current_page >= total_pages:
                 break
 
             params["page_num"] += 1
-            time.sleep(random.uniform(1.5, 3.5))  # menschlichere Pausen
+            time.sleep(random.uniform(1.5, 3.0))  # human-like delay
 
         except Exception as e:
             print(f"⚠️ Fehler auf Seite {params['page_num']}: {e}")
-            time.sleep(random.uniform(10, 20))
-            continue
+            break
 
     print(f"📦 Total gesammelt: {len(all_items)} Items")
 
@@ -88,11 +76,10 @@ def fetch_buff_prices():
         print("⚠️ Keine Daten gesammelt, Task endet.")
         return
 
-    # --- Write to PostgreSQL ---
+    # --- Write to database ---
     conn = get_connection()
     cur = conn.cursor()
 
-    # Markt sicherstellen
     cur.execute("""
         INSERT INTO markets (name, fee_percent)
         VALUES (%s, %s)
@@ -106,28 +93,24 @@ def fetch_buff_prices():
         if not item_name:
             continue
 
-        sell_price_cny = float(d.get("sell_min_price") or 0)
-        sell_price_eur = sell_price_cny * exchange_rate
+        sell_price = float(d.get("sell_min_price") or 0)
         volume = int(d.get("sell_num") or 0)
 
-        # Item einfügen
         cur.execute("""
             INSERT INTO items (name)
             VALUES (%s)
             ON CONFLICT (name) DO NOTHING
         """, (item_name,))
 
-        # Preis speichern (in EUR)
         cur.execute("""
-            INSERT INTO prices (item_id, market_id, price, volume, currency)
+            INSERT INTO prices (item_id, market_id, price, volume)
             VALUES (
                 (SELECT id FROM items WHERE name=%s),
                 (SELECT id FROM markets WHERE name='Buff163'),
                 %s,
-                %s,
-                'EUR'
+                %s
             )
-        """, (item_name, sell_price_eur, volume))
+        """, (item_name, sell_price, volume))
 
         inserted_count += 1
         if inserted_count % 100 == 0:
@@ -137,4 +120,4 @@ def fetch_buff_prices():
     conn.commit()
     cur.close()
     conn.close()
-    print(f"✅ Fertig! {inserted_count} Buff163-Preise in EUR in Postgres gespeichert.")
+    print(f"✅ Fertig! {inserted_count} Buff163-Preise erfolgreich in Postgres geschrieben.")
