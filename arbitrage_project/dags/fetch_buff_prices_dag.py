@@ -9,7 +9,7 @@ from arbitrage_project.scripts.api.buff_api import fetch_buff_prices
 with DAG(
     dag_id="fetch_buff_prices",
     start_date=datetime(2025,10,20),
-    schedule_interval="0 */8 * * *",
+    schedule_interval="0 1-23/8 * * *",
     catchup=False,
     tags=["arbitrage"]
 ) as dag:
